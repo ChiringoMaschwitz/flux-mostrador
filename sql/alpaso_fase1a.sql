@@ -118,6 +118,17 @@ create table if not exists alpaso.pedidos (
 grant select, insert, update, delete on all tables in schema alpaso to alpaso_app;
 grant usage, select on all sequences in schema alpaso to alpaso_app;
 
+-- Supabase activa la seguridad por filas (RLS) en tablas nuevas: sin esta regla alpaso_app las ve vacías.
+do $$
+declare t text;
+begin
+  for t in select tablename from pg_tables where schemaname = 'alpaso' loop
+    execute format('alter table alpaso.%I enable row level security', t);
+    execute format('drop policy if exists alpaso_app_todo on alpaso.%I', t);
+    execute format('create policy alpaso_app_todo on alpaso.%I for all to alpaso_app using (true) with check (true)', t);
+  end loop;
+end $$;
+
 -- ── alta de usuarios con PIN (el PIN se guarda cifrado) ───────────────────
 create or replace function alpaso.crear_usuario(p_nombre text, p_rol text, p_pin text)
 returns void
