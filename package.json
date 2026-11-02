@@ -1,0 +1,14 @@
+{
+  "name": "flux-mostrador",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Venta al paso sin cajero: pedido por QR, pago y comanda automática. Primer local: Una Pizza.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@vercel/blob": "2.8.2",
+    "pg": "8.23.1"
+  }
+}
