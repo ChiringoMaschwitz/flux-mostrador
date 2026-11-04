@@ -211,7 +211,7 @@ begin
     (s_empanadas, 'Pollo', '', null, null, null, 2),
     (s_empanadas, 'Jamón y queso', '', null, null, null, 3),
     (s_empanadas, 'Verdura', '', null, null, null, 4),
-    (s_empanadas, 'Bondiola', 'Desmechada a la mostaza', null, null, '/assets/fotos/empanada-bondiola.jpg', 5),
+    (s_empanadas, 'Bondiola', 'Desmechada a la mostaza', null, null, null, 5),
 
     (s_faina, 'Porción de fainá', '', 2700, null, '/assets/fotos/faina.jpg', 1),
 
