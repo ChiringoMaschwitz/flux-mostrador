@@ -423,6 +423,7 @@ function grupoCarta(s, i, n){
   var meta = [TIPOS[s.tipo].t];
   if (s.dentro_de) meta.push('Dentro de ' + seccion(s.dentro_de).nombre);
   if (s.mitades) meta.push('Mitad y mitad');
+  if (s.flotante) meta.push('Botón flotante');
   if (s.tipo === 'empanadas' && s.precios) meta.push('c/u ' + fmt(s.precios.unidad) + ' · ½ ' + fmt(s.precios.media) + ' · doc. ' + fmt(s.precios.docena));
   var h = '<section class="grupo' + (s.dentro_de ? ' sub' : '') + '"><div class="grupo-cab"><span class="tema t-' + s.tema + '" aria-hidden="true"></span><div class="t"><h3>' + esc(s.nombre) + '</h3><p class="meta">' + meta.map(esc).join(' · ') + (s.activa ? '' : ' <span class="marca gris">Oculta</span>') + '</p></div>' +
     '<div class="flechas"><button type="button" data-mover-sec="' + s.id + '" data-dir="-1" aria-label="Subir sección ' + esc(s.nombre) + '"' + (i === 0 ? ' disabled' : '') + '>' + ICO.arriba + '</button><button type="button" data-mover-sec="' + s.id + '" data-dir="1" aria-label="Bajar sección ' + esc(s.nombre) + '"' + (i === n - 1 ? ' disabled' : '') + '>' + ICO.abajo + '</button></div>' +
@@ -584,6 +585,7 @@ function editarSeccion(s){
     '<div class="campo"><label for="s-dentro">¿Dónde se muestra?</label><select id="s-dentro"' + (tieneHijas ? ' disabled' : '') + '><option value="">Como solapa propia</option>' + principales().filter(function(x){ return !s || x.id !== s.id; }).map(function(x){
       return '<option value="' + x.id + '"' + (s && s.dentro_de === x.id ? ' selected' : '') + '>Dentro de ' + esc(x.nombre) + '</option>'; }).join('') + '</select>' +
       (tieneHijas ? '<p class="nota">Tiene otras secciones adentro, así que queda como solapa propia.</p>' : '') + '</div>' +
+    llave('s-flotante', 'Mostrar como botón flotante', 'No aparece en la carta: queda en un botón al costado en las solapas de pizzas y empanadas (como la fainá).', s ? s.flotante : false) +
     llave('s-activa', 'Se muestra', 'Apagado: la sección y sus productos no aparecen.', s ? s.activa : true) +
     '<p class="error-form" id="form-error" role="alert"></p>';
   abrirCajon(s ? 'Sección' : 'Nueva sección', cuerpo, '<button class="boton" type="button" id="s-guardar">' + (s ? 'Guardar cambios' : 'Crear sección') + '</button><button class="boton claro" type="button" id="s-cancelar">Cancelar</button>');
@@ -598,7 +600,7 @@ function editarSeccion(s){
       accion:'seccion_guardar', id:s ? s.id : null, nombre:$('s-nombre').value, bajada:$('s-bajada').value,
       tipo:tipo(), tema:(document.querySelector('input[name="s-tema"]:checked') || {}).value, mitades:$('s-mitades').checked,
       precio_unidad:soloNumeros($('s-unidad').value), precio_media:soloNumeros($('s-media').value), precio_docena:soloNumeros($('s-docena').value),
-      dentro_de:$('s-dentro').value ? Number($('s-dentro').value) : null, activa:$('s-activa').checked
+      dentro_de:$('s-dentro').value ? Number($('s-dentro').value) : null, activa:$('s-activa').checked, flotante:$('s-flotante').checked
     };
     b.disabled = true; errorForm('');
     api('/api/panel/accion', datos).then(function(j){ cerrarCajon(); avisar(j.sin_cambios ? 'No había cambios' : 'Guardado'); verCarta(); })
@@ -825,7 +827,7 @@ function verPedidos(){
 
 /* ---------- historial ---------- */
 var CAMPOS = {nombre:'Nombre', descripcion:'Descripción', precio:'Precio', precio_grande:'Grande', foto:'Foto', opciones:'Opciones', activo:'Se muestra', al_paso:'Al paso', agotado:'Agotado',
-  seccion_id:'Sección', bajada:'Bajada', tipo:'Tipo', tema:'Color', mitades:'Mitad y mitad', precio_unidad:'Unidad', precio_media:'½ docena', precio_docena:'Docena', dentro_de:'Dentro de', activa:'Se muestra',
+  seccion_id:'Sección', bajada:'Bajada', tipo:'Tipo', tema:'Color', mitades:'Mitad y mitad', flotante:'Flotante', precio_unidad:'Unidad', precio_media:'½ docena', precio_docena:'Docena', dentro_de:'Dentro de', activa:'Se muestra',
   horario:'Horario', estado_manual:'Estado', rol:'Rol', pin:'PIN', desbloqueado:'Desbloqueado', movido:'Movido', costo:'Costo'};
 var ACCIONES = {producto_alta:'Alta', producto_cambio:'Cambio', agotado:'Agotado', reactivado:'Volvió', orden:'Orden', seccion_alta:'Sección nueva', seccion_cambio:'Sección', local:'Local', usuario_alta:'Usuario nuevo', usuario_cambio:'Usuario', carga_inicial:'Carga inicial', zona_alta:'Zona nueva', zona_cambio:'Zona'};
 function valorTexto(k, v){

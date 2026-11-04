@@ -27,6 +27,12 @@ update alpaso.locales
    set horario_delivery = '{"3":["19:30","24:00"],"4":["19:30","24:00"],"5":["19:30","24:00"],"6":["19:30","24:00"],"0":["19:30","24:00"]}'
  where id = 'PIZZERIA' and horario_delivery = '{}'::jsonb;
 
+-- ── secciones que se muestran como botón flotante (ej.: fainá) en vez de en la carta ──
+alter table alpaso.secciones add column if not exists flotante boolean not null default false;
+update alpaso.secciones set flotante = true
+ where local_id = 'PIZZERIA' and nombre = 'Fainá'
+   and not exists (select 1 from alpaso.secciones where local_id = 'PIZZERIA' and flotante);
+
 -- ── zonas de delivery ──
 create table if not exists alpaso.zonas (
   id             serial primary key,
