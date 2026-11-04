@@ -521,6 +521,7 @@ var CARTA = null, SOLAPAS = [], ITEMS = {}, SECS = {};
 var PEDIDO = [];      /* renglones: {key, tipo:'producto'|'mitades', item, tam, opcion, mitades, nombre, detalle, unit, cant} */
 var EMPS = {};        /* empanadas: {producto_id: cantidad}; se cobran juntas por sección (docena y media solas) */
 var FLOTANTES = [];
+var CON_ENVIO = true;  // false los días de noche que son solo retiro (miércoles)
 var VENTANA_ON = true;  // false cuando la ventana está apagada en esta dirección (VENTANA=apagada en Vercel)
 function sinVentana(){ return MODO === 'delivery' || !VENTANA_ON; }
 var ABIERTO = false, PRUEBA = true, CARGADA_AT = 0, MODO = null, ZONAS = [], PAGOS_ONLINE = false, WA = '';
@@ -550,13 +551,23 @@ function resumenHorario(hor){
 }
 function horarioTexto(){ var t = resumenHorario(CARTA.local.ventana ? CARTA.local.ventana.horario : CARTA.local.horario); return t.charAt(0).toUpperCase() + t.slice(1); }
 function horarioDelivery(){ return CARTA.local.delivery ? resumenHorario(CARTA.local.delivery.horario) : ''; }
+// "Delivery jueves a domingo… · Retiro miércoles a domingo…" (o uno solo si son los mismos días)
+function horarioNoche(){
+  var d = CARTA.local.delivery; if (!d) return '';
+  var todos = resumenHorario(d.horario), dias = d.envio_dias || [0, 1, 2, 3, 4, 5, 6], conEnvio = {};
+  Object.keys(d.horario || {}).forEach(function(k){ if (dias.indexOf(Number(k)) > -1) conEnvio[k] = d.horario[k]; });
+  var envio = resumenHorario(conEnvio);
+  if (envio === todos) return 'Delivery y retiro: ' + todos;
+  return 'Delivery: ' + (Object.keys(conEnvio).length ? envio : 'por ahora no') + ' · Retiro: ' + todos;
+}
 function horariosCortos(){
-  if (!VENTANA_ON) return horarioDelivery() ? 'Delivery y retiro ' + horarioDelivery() : 'Volvé pronto';
-  return 'Al paso ' + resumenHorario(CARTA.local.ventana ? CARTA.local.ventana.horario : CARTA.local.horario) + (horarioDelivery() ? ' · Delivery ' + horarioDelivery() : '');
+  if (!VENTANA_ON) return horarioDelivery() ? horarioNoche() : 'Volvé pronto';
+  return 'Al paso ' + resumenHorario(CARTA.local.ventana ? CARTA.local.ventana.horario : CARTA.local.horario) + (horarioDelivery() ? ' · ' + horarioNoche() : '');
 }
 var TITULOS = {
   ventana:'<span>Pedí, pagá</span> <span>y retirá por</span> <span><em>la ventana</em></span>',
   delivery:'<span>Pedila y</span> <span>te la llevamos</span> <span><em>a tu casa</em></span>',
+  retiro:'<span>Pedila y</span> <span>retirala en</span> <span><em>el local</em></span>',
   cerrado:'<span>Pizza a la</span> <span>piedra, pedila</span> <span><em>desde acá</em></span>'
 };
 
@@ -631,7 +642,7 @@ function ajustarTitulos(){
 /* ================= LA CARTA (sale de /api/carta) ================= */
 function prepararCarta(c){
   CARTA = c; ITEMS = {}; SECS = {};
-  ABIERTO = !!c.local.abierto; PRUEBA = c.prueba !== false; MODO = c.local.modo || null; VENTANA_ON = c.local.ventana_activa !== false;
+  ABIERTO = !!c.local.abierto; PRUEBA = c.prueba !== false; MODO = c.local.modo || null; VENTANA_ON = c.local.ventana_activa !== false; CON_ENVIO = !(c.local.delivery && c.local.delivery.con_envio === false);
   ZONAS = c.zonas || []; PAGOS_ONLINE = !!c.pagos_online; WA = c.local.whatsapp || '';
   c.secciones.forEach(function(s){
     SECS[s.id] = s;
@@ -756,11 +767,11 @@ function pintarEstado(){
   $('estado').classList.toggle('abierto', ABIERTO);
   var hasta = hora(CARTA.local.hasta || (MODO === 'delivery' ? '24:00' : '17:00'));
   $('estado-txt').textContent = MODO === 'ventana' ? 'Al paso, pedí hasta las ' + hasta + ' h'
-    : MODO === 'delivery' ? 'Delivery y retiro hasta las ' + hasta + ' h'
+    : MODO === 'delivery' ? (CON_ENVIO ? 'Delivery y retiro hasta las ' : 'Hoy solo retiro, hasta las ') + hasta + ' h'
     : 'Cerrado ahora · ' + horariosCortos();
-  var t = TITULOS[MODO || 'cerrado'];
+  var t = TITULOS[MODO === 'delivery' && !CON_ENVIO ? 'retiro' : MODO || 'cerrado'];
   if ($('titulo').innerHTML !== t){ $('titulo').innerHTML = t; ajustarTitulos(); }
-  $('pie-horario').textContent = !VENTANA_ON ? 'Delivery y retiro: ' + (horarioDelivery() || 'muy pronto') : 'Al paso por la ventana: ' + resumenHorario(CARTA.local.ventana ? CARTA.local.ventana.horario : CARTA.local.horario) + (horarioDelivery() ? ' · Delivery y retiro: ' + horarioDelivery() : '');
+  $('pie-horario').textContent = !VENTANA_ON ? (horarioNoche() || 'Delivery y retiro muy pronto') : 'Al paso por la ventana: ' + resumenHorario(CARTA.local.ventana ? CARTA.local.ventana.horario : CARTA.local.horario) + (horarioDelivery() ? ' · ' + horarioNoche() : '');
   document.body.classList.toggle('modo-prueba', PRUEBA && MODO === 'ventana');
   $('btn-como').querySelector('.que').innerHTML = sinVentana() ? '<b>Sin llamar:</b> así funciona' : '<b>Sin fila:</b> así funciona';
 }
@@ -1138,21 +1149,21 @@ $('btn-como').onclick = function(){
   if (sinVentana()){
     abrirCajon('Así funciona', 'Pedí desde el celu, sin llamar y sin esperar que te atiendan.',
       '<ol class="pasos-como"><li><div><b>Elegí</b><span>Tocá el precio de lo que querés y se suma a tu pedido.</span></div></li>' +
-      '<li><div><b>Contanos</b><span>Delivery o retiro. Si es delivery, elegís tu zona y el envío se suma solo.</span></div></li>' +
-      '<li><div><b>Listo</b><span>Te escribimos por WhatsApp para confirmarlo. Pagás en efectivo al recibir.</span></div></li></ol>' +
-      '<p class="horas"><b>Delivery y retiro: ' + esc(horarioDelivery()) + '.</b>' + (VENTANA_ON ? '<br>Al paso por la ventana: ' + esc(horarioTexto()) + '.' : '') + '</p>');
+      '<li><div><b>Contanos</b><span>' + (MODO === 'delivery' && !CON_ENVIO ? 'Hoy es solo retiro: lo pasás a buscar por Mendoza 1578.' : 'Delivery o retiro. Si es delivery, elegís tu zona y el envío se suma solo.') + '</span></div></li>' +
+      '<li><div><b>Listo</b><span>Te escribimos por WhatsApp para confirmarlo. Pagás en efectivo ' + (MODO === 'delivery' && !CON_ENVIO ? 'al retirar' : 'al recibir') + '.</span></div></li></ol>' +
+      '<p class="horas"><b>' + esc(horarioNoche()) + '.</b>' + (VENTANA_ON ? '<br>Al paso por la ventana: ' + esc(horarioTexto()) + '.' : '') + '</p>');
     return;
   }
   abrirCajon('Así funciona', 'La pizza al paso de Una Pizza, sin fila y sin efectivo.',
     '<ol class="pasos-como"><li><div><b>Elegí</b><span>Tocá el precio de lo que querés y se suma a tu pedido.</span></div></li>' +
     '<li><div><b>Pagá</b><span>Con Mercado Pago: tarjeta, dinero en cuenta o QR. La factura te queda en el celu.</span></div></li>' +
     '<li><div><b>Retirá</b><span>Te damos un número. Cuando sale del horno lo cantamos por la ventana.</span></div></li></ol>' +
-    '<p class="horas"><b>' + esc(horarioTexto()) + '.</b>' + (horarioDelivery() ? '<br>Delivery y retiro: ' + esc(horarioDelivery()) + '.' : '') + '</p>');
+    '<p class="horas"><b>' + esc(horarioTexto()) + '.</b>' + (horarioDelivery() ? '<br>' + esc(horarioNoche()) + '.' : '') + '</p>');
 };
 
 /* ---------- tu pedido ---------- */
 function abrirPedido(){
-  var cuerpo = abrirCajon('Tu pedido', sinVentana() ? 'Después elegís delivery o retiro.' : 'Retirás por la ventana, en Mendoza 1578.', '<div id="renglones"></div>' +
+  var cuerpo = abrirCajon('Tu pedido', sinVentana() ? (MODO === 'delivery' && !CON_ENVIO ? 'Hoy es solo retiro, en Mendoza 1578.' : 'Después elegís delivery o retiro.') : 'Retirás por la ventana, en Mendoza 1578.', '<div id="renglones"></div>' +
     '<div class="ticket"><div class="arriba"><p class="que" id="ped-que"></p><p class="total"><small>Total</small><strong class="num" id="ped-total"></strong></p></div>' +
     '<div class="accion"><button class="boton" type="button" id="pagar"></button></div><p class="fino" id="ped-fino"></p></div>');
   function pintar(anim){
@@ -1202,12 +1213,12 @@ function leerDatos(){ try { return JSON.parse(localStorage.getItem(CLAVE_DATOS) 
 function guardarDatos(d){ try { localStorage.setItem(CLAVE_DATOS, JSON.stringify(d)); } catch(e){} }
 function abrirEntrega(){
   var d = leerDatos();
-  var entrega = d.entrega === 'retiro' ? 'retiro' : 'delivery';
+  var entrega = d.entrega === 'retiro' || !CON_ENVIO ? 'retiro' : 'delivery';
   var zonaId = ZONAS.some(function(z){ return z.id === d.zona_id; }) ? d.zona_id : null;
   var pago = 'efectivo';
   var html =
     '<div class="campo"><span class="et">¿Cómo lo querés?</span><div class="opciones-c" role="radiogroup" aria-label="Entrega">' +
-      '<label class="opcion"><input type="radio" name="en-tipo" value="delivery"' + (entrega === 'delivery' ? ' checked' : '') + '><span>Delivery</span></label>' +
+      '<label class="opcion"><input type="radio" name="en-tipo" value="delivery"' + (entrega === 'delivery' ? ' checked' : '') + (CON_ENVIO ? '' : ' disabled') + '><span>Delivery' + (CON_ENVIO ? '' : ' · hoy no') + '</span></label>' +
       '<label class="opcion"><input type="radio" name="en-tipo" value="retiro"' + (entrega === 'retiro' ? ' checked' : '') + '><span>Retiro en el local</span></label></div></div>' +
     '<div class="campo" id="en-zonas-c"><span class="et">Tu zona</span><div class="zonas" role="radiogroup" aria-label="Zona">' + ZONAS.map(function(z){
       return '<label class="zona"><input type="radio" name="en-zona" value="' + z.id + '"' + (z.id === zonaId ? ' checked' : '') + '><span><b>' + esc(z.nombre) + '</b><i class="num">' + fmt(z.costo) + '</i></span></label>';

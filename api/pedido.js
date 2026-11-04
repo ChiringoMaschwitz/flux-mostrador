@@ -21,7 +21,7 @@ export default manejar(['POST'], async (req, res) => {
     if (!MODO_PRUEBA) throw error(503, 'SIN_COBRO', 'El cobro todavía no está conectado.');
     fila = { canal: 'ventana', estado: 'PRUEBA', total: subtotal, entrega: null, zona_id: null, envio: 0, cliente: null, pago: null, paga_con: null };
   } else {
-    const e = armarEntrega(cuerpo, carta.zonas, subtotal, carta.pagos_online);
+    const e = armarEntrega(cuerpo, carta.zonas, subtotal, carta.pagos_online, carta.local.delivery.con_envio !== false);
     if (e.pago === 'mp') throw error(503, 'SIN_COBRO', 'El pago con Mercado Pago todavía no está conectado.');
     fila = { canal: 'delivery', estado: 'NUEVO', total: e.total, entrega: e.entrega, zona_id: e.zona_id, envio: e.envio,
       cliente: e.cliente, pago: e.pago, paga_con: e.paga_con, zona: e.zona };
