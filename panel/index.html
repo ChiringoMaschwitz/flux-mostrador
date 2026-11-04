@@ -244,6 +244,8 @@
   .acciones-n .boton.wa:only-child,.acciones-n .boton:first-child:nth-last-child(2){grid-column:1/-1}
   .aviso{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:120;width:max-content;max-width:min(420px,calc(100vw - 32px));padding:12px 18px;border-radius:16px;background:var(--tinta);color:var(--tiza);font-size:17px;font-weight:700;text-align:center;box-shadow:var(--sombra);transform:translate(-50%,12px);opacity:0;pointer-events:none;transition:transform 260ms var(--ease-out),opacity 200ms ease}
   .aviso.si{transform:translate(-50%,0);opacity:1}
+  .activar-sonido{position:fixed;left:0;right:0;top:0;z-index:130;min-height:56px;padding:12px max(16px, env(safe-area-inset-right,0px)) 12px max(16px, env(safe-area-inset-left,0px));padding-top:calc(12px + env(safe-area-inset-top,0px));border:0;background:var(--ambar);color:#fff;font:inherit;font-size:18px;font-weight:800;cursor:pointer;box-shadow:var(--sombra)}
+  .activar-sonido:active{opacity:.9}
   .cargando{padding:40px 0;text-align:center;color:var(--gris);font-size:19px}
 
   @media (hover:hover) and (pointer:fine){
@@ -294,6 +296,7 @@
 
 <div class="cajon" id="cajon" role="dialog" aria-modal="true" aria-labelledby="cajon-t" hidden></div>
 <div class="aviso" id="aviso" role="status" aria-live="polite"></div>
+<button class="activar-sonido" id="activar-sonido" type="button" hidden>Tocá acá para activar el sonido de pedidos</button>
 
 <script>
 /* ================= BASE ================= */
@@ -364,7 +367,7 @@ $('pin-paso').addEventListener('submit', function(e){
   }).catch(function(err){ $('pin-error').textContent = err.message; $('pin').value = ''; $('pin').focus(); })
     .then(function(){ b.disabled = false; });
 });
-$('salir').onclick = function(){ guardarSesion(null); mostrarEntrar(); };
+$('salir').onclick = function(){ pararNoche(); guardarSesion(null); mostrarEntrar(); };
 
 function arrancar(){
   $('entrar').hidden = true; $('app').hidden = false;
@@ -372,6 +375,7 @@ function arrancar(){
   $('yo').innerHTML = esc(u.nombre) + '<small>' + (u.rol === 'gerencia' ? 'Gerencia' : 'Controlador') + '</small>';
   $('tab-usuarios').hidden = u.rol !== 'gerencia';
   ir(VISTA);
+  vigilarNoche();
 }
 
 /* ================= VISTAS ================= */
@@ -380,7 +384,7 @@ function ir(v){
   VISTA = v;
   document.querySelectorAll('#tabs [data-v]').forEach(function(b){ b.setAttribute('aria-selected', String(b.dataset.v === v)); });
   $('vista').innerHTML = '<p class="cargando">Cargando…</p>';
-  if (v !== 'noche') pararNoche();
+  if (v !== 'noche') soltarPantalla();
   var cargas = {carta:verCarta, noche:verNoche, agotados:verAgotados, horario:verHorario, pedidos:verPedidos, historial:verHistorial, usuarios:verUsuarios};
   (cargas[v] || verCarta)().catch(function(e){ if (e.message !== 'sesion') $('vista').innerHTML = '<p class="cargando">' + esc(e.message) + '</p>'; });
 }
@@ -722,23 +726,81 @@ function editarZona(z){
 var NOCHE = {timer:null, vistos:null, audio:null, sonido:false, titulo:document.title};
 try { NOCHE.sonido = localStorage.getItem('alpaso_sonido') === '1'; } catch(e){}
 var ESTADO_NOCHE = {NUEVO:'Nuevo', CONFIRMADO:'En preparación', EN_CAMINO:'En camino', LISTO:'Listo para retirar', ENTREGADO:'Entregado', CANCELADO:'Cancelado'};
+// Sonido: un archivo de audio armado acá (suena aunque el iPhone esté en silencio).
+// El navegador lo deja sonar recién después de un toque en la página: cualquier toque lo habilita.
+function armarPitido(){
+  var tasa = 22050, dur = 0.72, n = Math.floor(tasa * dur), datos = new DataView(new ArrayBuffer(44 + n * 2));
+  function txt(o, t){ for (var i = 0; i < t.length; i++) datos.setUint8(o + i, t.charCodeAt(i)); }
+  txt(0, 'RIFF'); datos.setUint32(4, 36 + n * 2, true); txt(8, 'WAVEfmt '); datos.setUint32(16, 16, true);
+  datos.setUint16(20, 1, true); datos.setUint16(22, 1, true); datos.setUint32(24, tasa, true); datos.setUint32(28, tasa * 2, true);
+  datos.setUint16(32, 2, true); datos.setUint16(34, 16, true); txt(36, 'data'); datos.setUint32(40, n * 2, true);
+  var tonos = [[0, 990], [0.24, 990], [0.48, 1320]];
+  for (var i = 0; i < n; i++){
+    var t = i / tasa, v = 0;
+    tonos.forEach(function(q){ var x = t - q[0]; if (x >= 0 && x < 0.2) v += Math.sin(2 * Math.PI * q[1] * x) * Math.min(1, x / 0.01) * Math.min(1, (0.2 - x) / 0.06); });
+    datos.setInt16(44 + i * 2, Math.max(-1, Math.min(1, v * 0.6)) * 32767, true);
+  }
+  return URL.createObjectURL(new Blob([datos.buffer], {type:'audio/wav'}));
+}
+NOCHE.el = null; NOCHE.listo = false; NOCHE.pendientes = 0; NOCHE.alarma = null; NOCHE.lock = null;
+try { NOCHE.el = new Audio(armarPitido()); NOCHE.el.preload = 'auto'; } catch(e){}
+function pintarSonido(){
+  var falta = NOCHE.sonido && !NOCHE.listo;
+  $('activar-sonido').hidden = !falta;
+  var b = $('sonido');
+  if (b) b.textContent = !NOCHE.sonido ? 'Activar sonido' : NOCHE.listo ? 'Sonido activado' : 'Tocá para activar el sonido';
+}
+function desbloquear(){
+  if (NOCHE.listo || !NOCHE.el || !NOCHE.sonido) return;
+  var el = NOCHE.el; el.muted = true;
+  var p = el.play();
+  function ok(){ el.pause(); el.currentTime = 0; el.muted = false; NOCHE.listo = true; pintarSonido(); }
+  if (p && p.then) p.then(ok).catch(function(){ el.muted = false; }); else ok();
+}
+document.addEventListener('pointerdown', desbloquear, true);
+document.addEventListener('keydown', desbloquear, true);
+$('activar-sonido').onclick = function(){ desbloquear(); setTimeout(function(){ if (NOCHE.listo) avisar('Sonido activado'); }, 300); };
 function sonar(){
   if (!NOCHE.sonido) return;
+  try { if (navigator.vibrate) navigator.vibrate([250, 120, 250]); } catch(e){}
+  if (!NOCHE.el || !NOCHE.listo){ pintarSonido(); return; }
+  NOCHE.el.currentTime = 0;
+  var p = NOCHE.el.play();
+  if (p && p.catch) p.catch(function(){ NOCHE.listo = false; pintarSonido(); });
+}
+// aviso de Windows / Mac en la esquina, cuando el panel no está a la vista
+function avisoEscritorio(p){
   try {
-    var A = window.AudioContext || window.webkitAudioContext; if (!A) return;
-    NOCHE.audio = NOCHE.audio || new A();
-    var ctx = NOCHE.audio; if (ctx.state === 'suspended') ctx.resume();
-    [0, 0.22, 0.44].forEach(function(t, k){
-      var o = ctx.createOscillator(), g = ctx.createGain();
-      o.type = 'sine'; o.frequency.value = k === 2 ? 1320 : 990;
-      g.gain.setValueAtTime(0.0001, ctx.currentTime + t);
-      g.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + t + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.18);
-      o.connect(g); g.connect(ctx.destination); o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.2);
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    if (!document.hidden && document.hasFocus()) return;
+    var c = p.cliente || {};
+    var n = new Notification('Pedido nuevo #' + p.numero + ' · Una Pizza', {
+      body: (p.entrega === 'delivery' ? 'Delivery ' + (p.zona || '') : 'Retira en el local') + ' · ' + fmt(p.total) + (c.nombre ? ' · ' + c.nombre : ''),
+      tag: 'alpaso-' + p.id, requireInteraction: true
     });
+    n.onclick = function(){ window.focus(); ir('noche'); n.close(); };
   } catch(e){}
 }
-function pararNoche(){ clearInterval(NOCHE.timer); NOCHE.timer = null; document.title = NOCHE.titulo; }
+// en el celu: la pantalla queda prendida mientras se está en Noche con el sonido activo
+function pedirPantalla(){
+  if (!NOCHE.sonido || VISTA !== 'noche' || document.hidden || NOCHE.lock || !navigator.wakeLock) return;
+  navigator.wakeLock.request('screen').then(function(l){ NOCHE.lock = l; l.addEventListener('release', function(){ NOCHE.lock = null; }); }).catch(function(){});
+}
+function soltarPantalla(){ if (NOCHE.lock){ NOCHE.lock.release().catch(function(){}); NOCHE.lock = null; } }
+function vigilarNoche(){
+  if (!NOCHE.timer){
+    NOCHE.timer = setInterval(function(){ verNoche().catch(function(){}); }, 15000);
+    if (VISTA !== 'noche') verNoche().catch(function(){});
+  }
+  // sigue sonando cada 30 segundos mientras haya pedidos nuevos sin confirmar
+  if (!NOCHE.alarma) NOCHE.alarma = setInterval(function(){ if (NOCHE.pendientes > 0) sonar(); }, 30000);
+  pintarSonido();
+}
+document.addEventListener('visibilitychange', function(){
+  if (document.hidden || !SESION) return;
+  verNoche().catch(function(){}); pedirPantalla();
+});
+function pararNoche(){ clearInterval(NOCHE.timer); clearInterval(NOCHE.alarma); NOCHE.timer = NOCHE.alarma = null; NOCHE.vistos = null; NOCHE.pendientes = 0; soltarPantalla(); document.title = NOCHE.titulo; $('activar-sonido').hidden = true; }
 function telWa(t){ return '549' + String(t || '').replace(/\D/g, ''); }
 function telLindo(t){ t = String(t || ''); return t.length === 10 ? (t.slice(0, 2) === '11' ? t.slice(0, 2) + ' ' + t.slice(2, 6) + '-' + t.slice(6) : t.slice(0, 4) + ' ' + t.slice(4, 7) + '-' + t.slice(7)) : t; }
 function mensajeWa(p){
@@ -773,9 +835,13 @@ function verNoche(){
   return api('/api/panel/ver?vista=noche').then(function(j){
     var ps = j.pedidos, ids = ps.map(function(p){ return String(p.id); });
     var nuevos = NOCHE.vistos ? ids.filter(function(id){ return NOCHE.vistos.indexOf(id) < 0; }) : [];
-    if (nuevos.length){ sonar(); avisar(nuevos.length === 1 ? 'Entró un pedido nuevo' : 'Entraron ' + nuevos.length + ' pedidos nuevos'); }
+    if (nuevos.length){
+      sonar(); avisar(nuevos.length === 1 ? 'Entró un pedido nuevo' : 'Entraron ' + nuevos.length + ' pedidos nuevos');
+      ps.filter(function(p){ return nuevos.indexOf(String(p.id)) > -1; }).slice(0, 3).forEach(avisoEscritorio);
+    }
     NOCHE.vistos = ids;
     var abiertos = ps.filter(function(p){ return p.estado === 'NUEVO'; }).length;
+    NOCHE.pendientes = abiertos;
     var b = $('badge-noche'); b.hidden = !abiertos; b.textContent = abiertos || '';
     document.title = abiertos ? '(' + abiertos + ') Pedidos · Una Pizza' : NOCHE.titulo;
     if (VISTA !== 'noche') return;
@@ -789,7 +855,8 @@ function verNoche(){
     var h = '<div class="cab"><div><h2>Noche</h2><p>Delivery y retiro de hoy · se actualiza solo</p></div>' +
       '<button class="boton-chico" type="button" id="sonido">' + (NOCHE.sonido ? 'Sonido activado' : 'Activar sonido') + '</button></div>' +
       '<div class="resumen"><div><small>Pedidos</small><b class="num">' + ps.length + '</b></div><div><small>Total</small><b class="num">' + fmt(totalDia) + '</b></div></div>';
-    if (!ps.length) h += '<p class="ayuda">Todavía no entraron pedidos hoy. Cuando entre uno, suena y aparece acá.</p>';
+    if (!ps.length) h += '<p class="ayuda">Todavía no entraron pedidos hoy. Cuando entre uno, suena y aparece acá. Sigue sonando cada 30 segundos hasta que lo confirmes.</p>';
+    if (NOCHE.sonido && 'Notification' in window && Notification.permission === 'default') h += '<p class="ayuda">Para que también aparezca un aviso en la esquina de la pantalla (encima de Obelisk), tocá <b>Activar sonido</b> y elegí <b>Permitir</b>.</p>';
     grupos.forEach(function(g){
       var lista = ps.filter(g.f); if (!lista.length) return;
       if (g.t === 'Nuevos' || g.t === 'En preparación' || g.t === 'En camino o listos') lista = lista.slice().reverse();
@@ -797,11 +864,16 @@ function verNoche(){
     });
     $('vista').innerHTML = h;
     $('sonido').onclick = function(){
-      NOCHE.sonido = !NOCHE.sonido; try { localStorage.setItem('alpaso_sonido', NOCHE.sonido ? '1' : '0'); } catch(e){}
-      this.textContent = NOCHE.sonido ? 'Sonido activado' : 'Activar sonido';
-      if (NOCHE.sonido) sonar();
+      var prender = !(NOCHE.sonido && NOCHE.listo);
+      NOCHE.sonido = prender; try { localStorage.setItem('alpaso_sonido', prender ? '1' : '0'); } catch(e){}
+      if (prender){
+        desbloquear(); setTimeout(sonar, 250); pedirPantalla();
+        try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch(e){}
+      } else soltarPantalla();
+      pintarSonido();
     };
-    if (!NOCHE.timer) NOCHE.timer = setInterval(function(){ if (!document.hidden) verNoche().catch(function(){}); }, 15000);
+    pintarSonido(); pedirPantalla();
+    vigilarNoche();
   });
 }
 $('vista').addEventListener('click', function(e){
