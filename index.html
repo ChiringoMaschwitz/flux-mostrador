@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<title>Una Pizza al paso · Pedí y retirá por la ventana</title>
-<meta name="description" content="Pizza a la piedra al paso en Una Pizza, Mendoza 1578, Ingeniero Maschwitz. Elegí, pagá desde el celu y retirá por la ventana.">
+<title>Una Pizza · Pedí desde el celu</title>
+<meta name="description" content="Pizza a la piedra en Una Pizza, Mendoza 1578, Ingeniero Maschwitz. Pedila desde el celu: delivery y retiro.">
 <meta name="robots" content="noindex, follow">
 <meta name="theme-color" content="#8E1212">
-<meta property="og:title" content="Una Pizza al paso">
-<meta property="og:description" content="Elegí, pagá desde el celu y retirá por la ventana. Mendoza 1578, Maschwitz.">
+<meta property="og:title" content="Una Pizza · Pedí desde el celu">
+<meta property="og:description" content="Pizza a la piedra, delivery y retiro. Mendoza 1578, Maschwitz.">
 <meta property="og:image" content="/assets/fotos/portada-horno.jpg">
 <link rel="icon" href="/assets/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -467,7 +467,7 @@
     <div class="carrusel" id="carrusel" aria-label="Fotos de Una Pizza"></div>
     <div class="puntos" id="puntos" role="group" aria-label="Elegir foto"></div>
     <img class="logo-grande" src="/assets/logo.png" alt="Una Pizza a la piedra" width="420" height="304">
-    <h1 id="titulo" class="angosto"><span>Pedí, pagá</span> <span>y retirá por</span> <span><em>la ventana</em></span></h1>
+    <h1 id="titulo" class="angosto"><span>Pizza a la</span> <span>piedra, pedila</span> <span><em>desde acá</em></span></h1>
     <p class="estado" id="estado"><span class="punto" aria-hidden="true"></span><span id="estado-txt">Cargando…</span><span aria-hidden="true">·</span><span>Mendoza 1578</span></p>
     <button class="como" id="btn-como" type="button"><span class="que"><b>Sin fila:</b> así funciona</span><span class="ir" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></button>
     <p class="prueba-tag">Modo prueba · no se cobra</p>
@@ -478,7 +478,7 @@
 <footer class="pie">
   <b>Una Pizza · a la piedra</b>
   <span>Mendoza 1578, Paseo Mendoza, Ingeniero Maschwitz</span>
-  <span id="pie-horario">Al paso, retirando por la ventana</span>
+  <span id="pie-horario">Mendoza 1578, Ingeniero Maschwitz</span>
   <span>Salón y delivery: miércoles a domingo desde las 19 h · <a href="https://www.instagram.com/unapizza.maschwitz" target="_blank" rel="noopener">@unapizza.maschwitz</a> · <a href="https://grupochiringuito.com.ar/una-pizza/">grupochiringuito.com.ar</a></span>
 </footer>
 
@@ -521,6 +521,8 @@ var CARTA = null, SOLAPAS = [], ITEMS = {}, SECS = {};
 var PEDIDO = [];      /* renglones: {key, tipo:'producto'|'mitades', item, tam, opcion, mitades, nombre, detalle, unit, cant} */
 var EMPS = {};        /* empanadas: {producto_id: cantidad}; se cobran juntas por sección (docena y media solas) */
 var FLOTANTES = [];
+var VENTANA_ON = true;  // false cuando la ventana está apagada en esta dirección (VENTANA=apagada en Vercel)
+function sinVentana(){ return MODO === 'delivery' || !VENTANA_ON; }
 var ABIERTO = false, PRUEBA = true, CARGADA_AT = 0, MODO = null, ZONAS = [], PAGOS_ONLINE = false, WA = '';
 var CLAVE_DATOS = 'unapizza_datos';
 var PLANOS = [], SOLAPAS_DOM = [];
@@ -548,7 +550,10 @@ function resumenHorario(hor){
 }
 function horarioTexto(){ var t = resumenHorario(CARTA.local.ventana ? CARTA.local.ventana.horario : CARTA.local.horario); return t.charAt(0).toUpperCase() + t.slice(1); }
 function horarioDelivery(){ return CARTA.local.delivery ? resumenHorario(CARTA.local.delivery.horario) : ''; }
-function horariosCortos(){ return 'Al paso ' + resumenHorario(CARTA.local.ventana ? CARTA.local.ventana.horario : CARTA.local.horario) + (horarioDelivery() ? ' · Delivery ' + horarioDelivery() : ''); }
+function horariosCortos(){
+  if (!VENTANA_ON) return horarioDelivery() ? 'Delivery y retiro ' + horarioDelivery() : 'Volvé pronto';
+  return 'Al paso ' + resumenHorario(CARTA.local.ventana ? CARTA.local.ventana.horario : CARTA.local.horario) + (horarioDelivery() ? ' · Delivery ' + horarioDelivery() : '');
+}
 var TITULOS = {
   ventana:'<span>Pedí, pagá</span> <span>y retirá por</span> <span><em>la ventana</em></span>',
   delivery:'<span>Pedila y</span> <span>te la llevamos</span> <span><em>a tu casa</em></span>',
@@ -626,7 +631,7 @@ function ajustarTitulos(){
 /* ================= LA CARTA (sale de /api/carta) ================= */
 function prepararCarta(c){
   CARTA = c; ITEMS = {}; SECS = {};
-  ABIERTO = !!c.local.abierto; PRUEBA = c.prueba !== false; MODO = c.local.modo || null;
+  ABIERTO = !!c.local.abierto; PRUEBA = c.prueba !== false; MODO = c.local.modo || null; VENTANA_ON = c.local.ventana_activa !== false;
   ZONAS = c.zonas || []; PAGOS_ONLINE = !!c.pagos_online; WA = c.local.whatsapp || '';
   c.secciones.forEach(function(s){
     SECS[s.id] = s;
@@ -755,9 +760,9 @@ function pintarEstado(){
     : 'Cerrado ahora · ' + horariosCortos();
   var t = TITULOS[MODO || 'cerrado'];
   if ($('titulo').innerHTML !== t){ $('titulo').innerHTML = t; ajustarTitulos(); }
-  $('pie-horario').textContent = 'Al paso por la ventana: ' + resumenHorario(CARTA.local.ventana ? CARTA.local.ventana.horario : CARTA.local.horario) + (horarioDelivery() ? ' · Delivery y retiro: ' + horarioDelivery() : '');
+  $('pie-horario').textContent = !VENTANA_ON ? 'Delivery y retiro: ' + (horarioDelivery() || 'muy pronto') : 'Al paso por la ventana: ' + resumenHorario(CARTA.local.ventana ? CARTA.local.ventana.horario : CARTA.local.horario) + (horarioDelivery() ? ' · Delivery y retiro: ' + horarioDelivery() : '');
   document.body.classList.toggle('modo-prueba', PRUEBA && MODO === 'ventana');
-  $('btn-como').querySelector('.que').innerHTML = MODO === 'delivery' ? '<b>Sin llamar:</b> así funciona' : '<b>Sin fila:</b> así funciona';
+  $('btn-como').querySelector('.que').innerHTML = sinVentana() ? '<b>Sin llamar:</b> así funciona' : '<b>Sin fila:</b> así funciona';
 }
 
 /* ---------- solapas pegajosas ---------- */
@@ -1130,12 +1135,12 @@ function abrirOpciones(it){
 
 /* ---------- así funciona ---------- */
 $('btn-como').onclick = function(){
-  if (MODO === 'delivery'){
+  if (sinVentana()){
     abrirCajon('Así funciona', 'Pedí desde el celu, sin llamar y sin esperar que te atiendan.',
       '<ol class="pasos-como"><li><div><b>Elegí</b><span>Tocá el precio de lo que querés y se suma a tu pedido.</span></div></li>' +
       '<li><div><b>Contanos</b><span>Delivery o retiro. Si es delivery, elegís tu zona y el envío se suma solo.</span></div></li>' +
       '<li><div><b>Listo</b><span>Te escribimos por WhatsApp para confirmarlo. Pagás en efectivo al recibir.</span></div></li></ol>' +
-      '<p class="horas"><b>Delivery y retiro: ' + esc(horarioDelivery()) + '.</b><br>Al paso por la ventana: ' + esc(horarioTexto()) + '.</p>');
+      '<p class="horas"><b>Delivery y retiro: ' + esc(horarioDelivery()) + '.</b>' + (VENTANA_ON ? '<br>Al paso por la ventana: ' + esc(horarioTexto()) + '.' : '') + '</p>');
     return;
   }
   abrirCajon('Así funciona', 'La pizza al paso de Una Pizza, sin fila y sin efectivo.',
@@ -1147,7 +1152,7 @@ $('btn-como').onclick = function(){
 
 /* ---------- tu pedido ---------- */
 function abrirPedido(){
-  var cuerpo = abrirCajon('Tu pedido', MODO === 'delivery' ? 'Después elegís delivery o retiro.' : 'Retirás por la ventana, en Mendoza 1578.', '<div id="renglones"></div>' +
+  var cuerpo = abrirCajon('Tu pedido', sinVentana() ? 'Después elegís delivery o retiro.' : 'Retirás por la ventana, en Mendoza 1578.', '<div id="renglones"></div>' +
     '<div class="ticket"><div class="arriba"><p class="que" id="ped-que"></p><p class="total"><small>Total</small><strong class="num" id="ped-total"></strong></p></div>' +
     '<div class="accion"><button class="boton" type="button" id="pagar"></button></div><p class="fino" id="ped-fino"></p></div>');
   function pintar(anim){
@@ -1168,15 +1173,15 @@ function abrirPedido(){
     }
     r.innerHTML = h;
     var u = unidades();
-    $('ped-que').innerHTML = '<b>' + u + (u === 1 ? ' cosa' : ' cosas') + '</b>' + (MODO === 'delivery' ? 'Sin el envío' : 'Retiro por la ventana');
+    $('ped-que').innerHTML = '<b>' + u + (u === 1 ? ' cosa' : ' cosas') + '</b>' + (sinVentana() ? 'Sin el envío' : 'Retiro por la ventana');
     var t = $('ped-total'), txt = fmt(total());
     if (t.textContent !== txt){ t.textContent = txt; if (anim) animar(t); }
     var b = $('pagar');
-    $('ped-fino').innerHTML = MODO === 'delivery' ? 'En el paso siguiente elegís <b>delivery o retiro</b> y cómo pagás.'
+    $('ped-fino').innerHTML = sinVentana() ? 'En el paso siguiente elegís <b>delivery o retiro</b> y cómo pagás.'
       : PRUEBA ? '<b>Modo prueba:</b> no se cobra. Se guarda el pedido y te damos el número.' : 'Pagás con <b>Mercado Pago</b>. Te damos un número y la factura queda en esta pantalla.';
     if (!ABIERTO) return botonCerrado(b);
     b.disabled = !u;
-    b.textContent = MODO === 'delivery' ? 'Seguir: entrega y pago' : PRUEBA ? 'Confirmar pedido de prueba · ' + fmt(total()) : 'Pagar ' + fmt(total()) + ' con Mercado Pago';
+    b.textContent = sinVentana() ? 'Seguir: entrega y pago' : PRUEBA ? 'Confirmar pedido de prueba · ' + fmt(total()) : 'Pagar ' + fmt(total()) + ' con Mercado Pago';
   }
   cuerpo.addEventListener('click', function(e){
     var p = e.target.closest('[data-paso]');

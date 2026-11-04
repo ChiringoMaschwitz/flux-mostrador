@@ -634,6 +634,7 @@ $('vista').addEventListener('change', function(e){
 /* ---------- horario y zonas ---------- */
 function bloqueHorario(que, titulo, datos, porDefecto){
   var hor = datos.horario || {}, m = datos.estado_manual || 'auto';
+  if (datos.activa === false) return '<section class="estado-card"><p class="tipo-h">' + titulo + '</p><p class="ahora"><i aria-hidden="true"></i>Apagada en esta dirección</p><p>La página pública no muestra la ventana ni toma pedidos de mediodía. Se prende quitando la variable VENTANA en Vercel (Production) cuando estén el cobro, la comandera y la factura.</p></section>';
   return '<section class="estado-card' + (datos.abierto ? ' abierto' : '') + '"><p class="tipo-h">' + titulo + '</p><p class="ahora"><i aria-hidden="true"></i>' + (datos.abierto ? 'Abierto ahora' : 'Cerrado ahora') + '</p>' +
     '<p>' + (m === 'auto' ? 'Sigue el horario de abajo.' : m === 'abierto' ? 'Abierto a mano: toma pedidos aunque esté fuera de horario.' : 'Cerrado a mano: no toma pedidos aunque esté en horario.') + '</p>' +
     '<div class="segmento" role="group" aria-label="Abrir o cerrar ' + titulo + '">' +
