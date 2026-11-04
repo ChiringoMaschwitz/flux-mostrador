@@ -23,6 +23,7 @@ Etapas que siguen: 2 cobro con Mercado Pago · 3 comandera · 4 factura B con AR
 
 1. Pegá y corré todo `sql/alpaso_fase1a.sql`. Crea el esquema, el usuario `alpaso_app` y carga la carta de Una Pizza.
    Después corré `sql/alpaso_fase1c_noche.sql` (horario del delivery, zonas y datos del pedido de noche).
+   Y `sql/alpaso_fase1d_fotos.sql` (fotos de las pizzas que no tenían; no pisa las que se subieron desde el panel).
 2. En una consulta nueva, corré estas dos líneas cambiando lo que está en mayúsculas:
 
    ```sql
@@ -72,5 +73,5 @@ Etapas que siguen: 2 cobro con Mercado Pago · 3 comandera · 4 factura B con AR
 - `panel/index.html` — panel.
 - `api/carta.js`, `api/pedido.js` — públicos. `api/panel/{sesion,ver,accion,foto}.js` — con sesión.
 - `lib/` — base (`db`), sesión y PIN (`sesion`), horario, carta, armado del pedido, cambios del panel.
-- `sql/alpaso_fase1a.sql` — esquema, usuario restringido y carta inicial (idempotente).
+- `sql/alpaso_fase1a.sql` — esquema, usuario restringido y carta inicial (idempotente). `fase1b` permisos, `fase1c` noche, `fase1d` fotos.
 - `assets/` — logo y fotos iniciales (las nuevas se suben al Blob desde el panel).

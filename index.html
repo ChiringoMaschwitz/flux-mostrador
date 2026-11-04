@@ -248,14 +248,15 @@
   .error-c:empty{display:none}
   a.boton{text-decoration:none}
   /* botón flotante (fainá): pegado a la derecha, sube cuando aparece "Tu pedido" */
-  .placa{position:fixed;right:max(12px, env(safe-area-inset-right, 0px));bottom:calc(16px + env(safe-area-inset-bottom, 0px));z-index:52;width:64px;padding:12px 0 14px;border:0;border-radius:20px;background:var(--pizarra) var(--mosaico) 0 0/96px 96px;color:var(--tiza);
+  .placa{position:fixed;right:0;bottom:calc(16px + env(safe-area-inset-bottom, 0px));z-index:52;width:calc(40px + env(safe-area-inset-right, 0px));padding:10px env(safe-area-inset-right, 0px) 12px 0;border:0;border-radius:18px 0 0 18px;background:var(--pizarra) var(--mosaico) 0 0/96px 96px;color:var(--tiza);
     display:flex;flex-direction:column;align-items:center;gap:10px;cursor:pointer;box-shadow:var(--sombra-flota);transform:translateX(150%);transition:transform 320ms var(--ease-out),bottom 320ms var(--ease-out)}
   .placa.visible{transform:none}
+  .placa.visible.escondida{transform:translateX(calc(100% - 8px))}
   .placa.visible:active{transform:scale(.96)}
   .con-pedido .placa{bottom:calc(88px + env(safe-area-inset-bottom, 0px))}
-  .placa svg{width:38px;height:38px;filter:drop-shadow(0 3px 4px rgba(0,0,0,.35))}
-  .placa span{writing-mode:vertical-rl;transform:rotate(180deg);font-family:var(--cond);font-size:16px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
-  .placa .cuenta-p{writing-mode:horizontal-tb;transform:none;min-width:24px;height:24px;padding:0 6px;border-radius:999px;background:var(--rojo);display:grid;place-items:center;font-family:var(--letra);font-size:14px;letter-spacing:0}
+  .placa svg{width:28px;height:28px;filter:drop-shadow(0 3px 4px rgba(0,0,0,.35))}
+  .placa span{writing-mode:vertical-rl;transform:rotate(180deg);font-family:var(--cond);font-size:14px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
+  .placa .cuenta-p{writing-mode:horizontal-tb;transform:none;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--rojo);display:grid;place-items:center;font-family:var(--letra);font-size:14px;letter-spacing:0}
   .pop{position:fixed;right:max(12px, env(safe-area-inset-right, 0px));bottom:calc(16px + env(safe-area-inset-bottom, 0px));z-index:56;width:min(330px,calc(100vw - 24px));padding:18px 18px 14px;border-radius:24px;background:var(--pizarra) var(--mosaico) 0 0/96px 96px;color:var(--tiza);box-shadow:var(--sombra-flota);
     transform-origin:100% 100%;transform:scale(.95);opacity:0;pointer-events:none;transition:transform 220ms var(--ease-out),opacity 220ms var(--ease-out),bottom 320ms var(--ease-out);--chip:var(--tiza);--chip-t:var(--pizarra)}
   .con-pedido .pop{bottom:calc(88px + env(safe-area-inset-bottom, 0px))}
@@ -827,6 +828,14 @@ function abrirPop(){ var pop = $('pop'); pop.hidden = false; requestAnimationFra
 function cerrarPop(){ var pop = $('pop'); if (!pop) return; pop.classList.remove('abierto'); $('placa').setAttribute('aria-expanded', 'false'); setTimeout(function(){ if (!pop.classList.contains('abierto')) pop.hidden = true; }, 230); }
 $('placa').onclick = function(e){ e.stopPropagation(); $('pop').classList.contains('abierto') ? cerrarPop() : abrirPop(); };
 document.addEventListener('click', function(e){ if (!e.target.closest('#pop, #placa')) cerrarPop(); });
+var QUIETO = null;
+addEventListener('scroll', function(){
+  var placa = $('placa');
+  if (!placa.classList.contains('visible') || $('pop').classList.contains('abierto')) return;
+  placa.classList.add('escondida');
+  clearTimeout(QUIETO);
+  QUIETO = setTimeout(function(){ placa.classList.remove('escondida'); }, 650);
+}, {passive:true});
 function cambioSolapa(){
   var c = ACTUAL ? ACTUAL.s : null;
   mostrarPlaca(!!c && TIPOS_CON_PLACA.indexOf(c.tipo) > -1);
