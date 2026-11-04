@@ -251,6 +251,7 @@
     .boton-chico:hover{background:var(--junta)}
   }
   @media (prefers-reduced-motion: reduce){ *,*::before,*::after{transition:none !important;animation:none !important} }
+  .dia.off .envio-l{display:none}
 </style>
 </head>
 <body>
@@ -646,7 +647,8 @@ function bloqueHorario(que, titulo, datos, porDefecto){
       var r = hor[String(d)], id = que + '-' + d;
       var hasta = r ? (r[1] === '24:00' ? '00:00' : r[1]) : porDefecto[1];
       return '<div class="dia' + (r ? '' : ' off') + '" data-dia="' + id + '">' + llave(id, DIAS[d], '', !!r).replace('class="llave"', 'class="llave" style="grid-column:1/-1;min-height:44px"') +
-        '<div class="horas"><input type="time" id="' + id + '-de" aria-label="' + DIAS[d] + ' desde" value="' + (r ? r[0] : porDefecto[0]) + '"><span>a</span><input type="time" id="' + id + '-a" aria-label="' + DIAS[d] + ' hasta" value="' + hasta + '"></div></div>';
+        '<div class="horas"><input type="time" id="' + id + '-de" aria-label="' + DIAS[d] + ' desde" value="' + (r ? r[0] : porDefecto[0]) + '"><span>a</span><input type="time" id="' + id + '-a" aria-label="' + DIAS[d] + ' hasta" value="' + hasta + '"></div>' +
+        (que === 'delivery' ? llave(id + '-envio', 'Con envío', 'Apagado: ese día es solo retiro en el local.', !datos.envio_dias || datos.envio_dias.indexOf(d) > -1).replace('class="llave"', 'class="llave envio-l" style="grid-column:1/-1;min-height:44px"') : '') + '</div>';
     }).join('') + '</div></section>' +
     '<p class="error-form" id="err-' + que + '" role="alert"></p><button class="boton" type="button" data-guardar-h="' + que + '">Guardar horario · ' + titulo + '</button>';
 }
@@ -668,7 +670,7 @@ function verHorario(){
       '<button class="sumar-fila" type="button" data-zona="">' + ICO.mas + 'Nueva zona</button></section>';
     $('vista').innerHTML = h;
     ['ventana', 'delivery'].forEach(function(que){
-      ORDEN_DIAS.forEach(function(d){ var id = que + '-' + d; $(id).onchange = function(){ document.querySelector('[data-dia="' + id + '"]').classList.toggle('off', !this.checked); }; });
+      ORDEN_DIAS.forEach(function(d){ var id = que + '-' + d, el = $(id); if (el) el.onchange = function(){ document.querySelector('[data-dia="' + id + '"]').classList.toggle('off', !this.checked); }; });
     });
     document.querySelectorAll('[data-estado]').forEach(function(b){
       b.onclick = function(){
@@ -685,7 +687,8 @@ function verHorario(){
           nuevo[String(d)] = $(id).checked ? [$(id + '-de').value, a === '00:00' ? '24:00' : a] : null;
         });
         var e = $('err-' + que); e.textContent = ''; b.disabled = true;
-        var cuerpo = {accion:'local_guardar', horario:nuevo}; if (que === 'delivery') cuerpo.que = 'delivery';
+        var cuerpo = {accion:'local_guardar', horario:nuevo};
+        if (que === 'delivery'){ cuerpo.que = 'delivery'; cuerpo.envio_dias = ORDEN_DIAS.filter(function(d){ return $('delivery-' + d + '-envio').checked; }); }
         api('/api/panel/accion', cuerpo).then(function(j){ avisar(j.sin_cambios ? 'No había cambios' : 'Horario guardado'); verHorario(); })
           .catch(function(err){ if (err.message !== 'sesion') e.textContent = err.message; }).then(function(){ b.disabled = false; });
       };
@@ -828,7 +831,7 @@ function verPedidos(){
 
 /* ---------- historial ---------- */
 var CAMPOS = {nombre:'Nombre', descripcion:'Descripción', precio:'Precio', precio_grande:'Grande', foto:'Foto', opciones:'Opciones', activo:'Se muestra', al_paso:'Al paso', agotado:'Agotado',
-  seccion_id:'Sección', bajada:'Bajada', tipo:'Tipo', tema:'Color', mitades:'Mitad y mitad', flotante:'Flotante', precio_unidad:'Unidad', precio_media:'½ docena', precio_docena:'Docena', dentro_de:'Dentro de', activa:'Se muestra',
+  seccion_id:'Sección', bajada:'Bajada', tipo:'Tipo', tema:'Color', mitades:'Mitad y mitad', flotante:'Flotante', envio_dias:'Días con envío', precio_unidad:'Unidad', precio_media:'½ docena', precio_docena:'Docena', dentro_de:'Dentro de', activa:'Se muestra',
   horario:'Horario', estado_manual:'Estado', rol:'Rol', pin:'PIN', desbloqueado:'Desbloqueado', movido:'Movido', costo:'Costo'};
 var ACCIONES = {producto_alta:'Alta', producto_cambio:'Cambio', agotado:'Agotado', reactivado:'Volvió', orden:'Orden', seccion_alta:'Sección nueva', seccion_cambio:'Sección', local:'Local', usuario_alta:'Usuario nuevo', usuario_cambio:'Usuario', carga_inicial:'Carga inicial', zona_alta:'Zona nueva', zona_cambio:'Zona'};
 function valorTexto(k, v){

@@ -23,6 +23,7 @@ Etapas que siguen: 2 cobro con Mercado Pago · 3 comandera · 4 factura B con AR
 
 1. Pegá y corré todo `sql/alpaso_fase1a.sql`. Crea el esquema, el usuario `alpaso_app` y carga la carta de Una Pizza.
    Después corré `sql/alpaso_fase1c_noche.sql` (horario del delivery, zonas y datos del pedido de noche).
+   Después `sql/alpaso_fase1e_envio.sql` (días con envío: miércoles solo retiro).
    Y `sql/alpaso_fase1d_fotos.sql` (fotos de las pizzas que no tenían; no pisa las que se subieron desde el panel).
 2. En una consulta nueva, corré estas dos líneas cambiando lo que está en mayúsculas:
 
@@ -61,6 +62,7 @@ Etapas que siguen: 2 cobro con Mercado Pago · 3 comandera · 4 factura B con AR
 - Precios siempre recalculados en el servidor (`lib/pedido.js`); el celular no decide precios.
 - **Modo de la página**: si la ventana está abierta, manda la ventana; si no, el delivery; si no, cerrado. Desde el panel se abre o cierra cada uno a mano.
 - **Delivery**: el envío sale de la zona guardada en la base. Celular argentino de 10 números (se aceptan 0, 15 y 54 y se limpian). Efectivo con "con cuánto pagás" opcional para el vuelto. Mercado Pago aparece como "muy pronto" hasta conectar el cobro.
+- **Días con envío**: a la noche se toma pedido todos los días del horario, pero el delivery solo los días con la llave "Con envío" (jueves a domingo). Los otros días la página ofrece solo retiro y el servidor rechaza el envío.
 - **Mitad y mitad**: solo grandes de secciones con "Mitad y mitad". Se cobra la grande del gusto más caro. Comanda: `GRANDE MITAD Y MITAD` + cada ½.
 - **Empanadas**: se eligen por gusto y se cobra la combinación más barata de sueltas, ½ docenas y docenas.
 - **Agotado**: se marca a mano y vuelve solo cuando alguien lo desmarca.
