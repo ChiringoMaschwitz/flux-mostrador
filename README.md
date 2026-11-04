@@ -44,6 +44,7 @@ Etapas que siguen: 2 cobro con Mercado Pago · 3 comandera · 4 factura B con AR
    |---|---|
    | `DATABASE_URL` | La misma conexión que usa FLUX (pooler, puerto 6543), cambiando **el usuario** por `alpaso_app.<ref>` (el `<ref>` es lo que va después de `postgres.` en el usuario actual) y **la contraseña** por la clave del paso 1. |
    | `SESION_SECRETO` | Cualquier frase larga inventada, de 32 caracteres o más. Firma las sesiones del panel. |
+   | `VENTANA` | Solo en **Production**: `apagada`. La página pública no muestra la ventana ni toma pedidos de mediodía hasta tener cobro, comandera y factura. En la dirección de prueba no se carga, así la ventana se sigue probando. |
 
 3. **Storage → Create → Blob** y conectalo al proyecto: agrega solo `BLOB_READ_WRITE_TOKEN` (para subir fotos desde el panel).
 4. **Redeploy** después de cargar las variables.
