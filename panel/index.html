@@ -54,6 +54,9 @@
   .quien{display:grid;gap:8px}
   .quien button{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:58px;padding:0 18px;border:0;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 1.5px var(--junta);font-size:22px;font-weight:800;text-align:left;transition:transform 140ms var(--ease-out)}
   .quien button:active{transform:scale(.98)}
+  .quien .ger-link{display:block;min-height:44px;margin:14px auto 0;padding:0 14px;background:none;box-shadow:none;color:var(--gris);font-size:14px;font-weight:600;opacity:.6;justify-content:center}
+  #ger{display:contents}
+  #ger[hidden]{display:none}
   .quien button small{font-size:14px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.08em}
   .pin-paso{display:grid;gap:12px}
   .pin-paso .para{display:flex;justify-content:space-between;align-items:center;font-size:20px;font-weight:800}
@@ -345,9 +348,13 @@ function mostrarEntrar(msg){
   $('pin-paso').hidden = true; $('quien').hidden = false; $('entrar-t').textContent = '¿Quién sos?';
   if (msg) avisar(msg);
   api('/api/panel/sesion').then(function(j){
-    $('quien').innerHTML = j.usuarios.length ? j.usuarios.map(function(u){
-      return '<button type="button" data-u="' + u.id + '" data-n="' + esc(u.nombre) + '">' + esc(u.nombre) + '<small>' + (u.rol === 'gerencia' ? 'Gerencia' : 'Controlador') + '</small></button>';
-    }).join('') : '<p class="error">Todavía no hay usuarios. Crealos con el SQL del README.</p>';
+    // a la vista solo el local; Gerencia queda escondida abajo
+    var local = j.usuarios.filter(function(u){ return u.rol !== 'gerencia'; }), ger = j.usuarios.filter(function(u){ return u.rol === 'gerencia'; });
+    function boton(u, k){ var n = u.rol === 'gerencia' ? 'Gerencia' + (ger.length > 1 ? ' ' + (k + 1) : '') : u.nombre; return '<button type="button" data-u="' + u.id + '" data-n="' + esc(n) + '">' + esc(n) + (u.rol === 'gerencia' ? '' : '<small>Local</small>') + '</button>'; }
+    $('quien').innerHTML = (local.length || ger.length) ? local.map(boton).join('') +
+      (ger.length ? '<div id="ger" hidden>' + ger.map(boton).join('') + '</div><button type="button" class="ger-link" id="ger-link">Gerencia</button>' : '') :
+      '<p class="error">Todavía no hay usuarios. Crealos con el SQL del README.</p>';
+    if (ger.length){ if (!local.length) $('ger').hidden = false; $('ger-link').hidden = !local.length; $('ger-link').onclick = function(e){ e.stopPropagation(); $('ger').hidden = false; this.hidden = true; }; }
   }).catch(function(e){ $('quien').innerHTML = '<p class="error">' + esc(e.message) + '</p>'; });
 }
 $('quien').addEventListener('click', function(e){
