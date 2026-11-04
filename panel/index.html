@@ -216,6 +216,32 @@
   .t-azulejo{background:#F3F0E4}.t-pizarra{background:#262B16}.t-rojo{background:#B21818}.t-tiza{background:#E9E5D6}.t-tinta{background:#1E1B16}.t-papel{background:#FAF7EC}
   .error-form{color:var(--rojo);font-weight:700;font-size:17px;min-height:0}
 
+  .badge{display:inline-grid;place-items:center;min-width:22px;height:22px;margin-left:6px;padding:0 6px;border-radius:999px;background:var(--rojo);color:#fff;font-size:14px;font-weight:800;vertical-align:1px}
+  .tabs button[aria-selected="true"] .badge{background:var(--rojo);color:#fff}
+  .estado-card .tipo-h{margin:0 0 6px;font-family:var(--slab);font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:#F2C14E}
+  .dos-col{display:grid;gap:0 18px}
+  @media (min-width:860px){ .dos-col{grid-template-columns:1fr 1fr} }
+  .grupo-t{margin:22px 0 10px;font-family:var(--cond);font-weight:900;font-size:26px;text-transform:uppercase;line-height:1}
+  .grupo-t span{color:var(--gris);font-size:20px}
+  .noche{background:var(--papel);border-radius:20px;padding:14px 16px 16px;margin-bottom:12px;box-shadow:0 1px 0 var(--junta),0 10px 24px -18px rgba(30,12,8,.5)}
+  .noche[data-estado="NUEVO"]{box-shadow:inset 0 0 0 2.5px var(--rojo),0 10px 24px -18px rgba(30,12,8,.5)}
+  .noche.recien{animation:entra 600ms var(--ease-out)}
+  @keyframes entra{from{transform:translateY(-8px);opacity:.3}}
+  .noche.cerrado{opacity:.62}
+  .noche header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .noche .n{font-family:var(--cond);font-weight:900;font-size:40px;line-height:.9;color:var(--rojo)}
+  .noche .h{font-weight:700;color:var(--gris)}
+  .noche .tot{margin-left:auto;font-family:var(--cond);font-weight:900;font-size:28px}
+  .noche .quien{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin-top:8px;font-size:21px}
+  .noche .quien a{color:var(--rojo);font-weight:800;text-decoration:none}
+  .noche .entrega-l,.noche .pago-l{margin:6px 0 0;font-size:18px;line-height:1.35}
+  .noche .nota{color:var(--gris)}
+  .noche pre{margin:10px 0 0;padding:10px 12px;border-radius:12px;background:#fff;box-shadow:inset 0 0 0 1px var(--junta);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+  .acciones-n{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+  .acciones-n .boton{min-height:52px;font-size:18px}
+  .acciones-n .boton-chico{grid-column:1/-1;justify-self:center;background:none;color:var(--gris);text-decoration:underline;text-underline-offset:.2em}
+  .boton.wa{background:#1E8F4E;text-decoration:none}
+  .acciones-n .boton.wa:only-child,.acciones-n .boton:first-child:nth-last-child(2){grid-column:1/-1}
   .aviso{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:120;width:max-content;max-width:min(420px,calc(100vw - 32px));padding:12px 18px;border-radius:16px;background:var(--tinta);color:var(--tiza);font-size:17px;font-weight:700;text-align:center;box-shadow:var(--sombra);transform:translate(-50%,12px);opacity:0;pointer-events:none;transition:transform 260ms var(--ease-out),opacity 200ms ease}
   .aviso.si{transform:translate(-50%,0);opacity:1}
   .cargando{padding:40px 0;text-align:center;color:var(--gris);font-size:19px}
@@ -255,9 +281,10 @@
   </div></header>
   <nav class="tabs" aria-label="Secciones del panel"><div class="w" role="tablist" id="tabs">
     <button type="button" role="tab" data-v="carta" aria-selected="true">Carta</button>
+    <button type="button" role="tab" data-v="noche" aria-selected="false">Noche<span class="badge num" id="badge-noche" hidden></span></button>
     <button type="button" role="tab" data-v="agotados" aria-selected="false">Agotados</button>
-    <button type="button" role="tab" data-v="horario" aria-selected="false">Horario</button>
-    <button type="button" role="tab" data-v="pedidos" aria-selected="false">Pedidos</button>
+    <button type="button" role="tab" data-v="horario" aria-selected="false">Horario y zonas</button>
+    <button type="button" role="tab" data-v="pedidos" aria-selected="false">Al paso</button>
     <button type="button" role="tab" data-v="historial" aria-selected="false">Historial</button>
     <button type="button" role="tab" data-v="usuarios" aria-selected="false" id="tab-usuarios" hidden>Usuarios</button>
   </div></nav>
@@ -352,7 +379,8 @@ function ir(v){
   VISTA = v;
   document.querySelectorAll('#tabs [data-v]').forEach(function(b){ b.setAttribute('aria-selected', String(b.dataset.v === v)); });
   $('vista').innerHTML = '<p class="cargando">Cargando…</p>';
-  var cargas = {carta:verCarta, agotados:verAgotados, horario:verHorario, pedidos:verPedidos, historial:verHistorial, usuarios:verUsuarios};
+  if (v !== 'noche') pararNoche();
+  var cargas = {carta:verCarta, noche:verNoche, agotados:verAgotados, horario:verHorario, pedidos:verPedidos, historial:verHistorial, usuarios:verUsuarios};
   (cargas[v] || verCarta)().catch(function(e){ if (e.message !== 'sesion') $('vista').innerHTML = '<p class="cargando">' + esc(e.message) + '</p>'; });
 }
 function traerCarta(){ return api('/api/panel/ver?vista=carta').then(function(j){ CARTA = j; return j; }); }
@@ -395,6 +423,7 @@ function grupoCarta(s, i, n){
   var meta = [TIPOS[s.tipo].t];
   if (s.dentro_de) meta.push('Dentro de ' + seccion(s.dentro_de).nombre);
   if (s.mitades) meta.push('Mitad y mitad');
+  if (s.flotante) meta.push('Botón flotante');
   if (s.tipo === 'empanadas' && s.precios) meta.push('c/u ' + fmt(s.precios.unidad) + ' · ½ ' + fmt(s.precios.media) + ' · doc. ' + fmt(s.precios.docena));
   var h = '<section class="grupo' + (s.dentro_de ? ' sub' : '') + '"><div class="grupo-cab"><span class="tema t-' + s.tema + '" aria-hidden="true"></span><div class="t"><h3>' + esc(s.nombre) + '</h3><p class="meta">' + meta.map(esc).join(' · ') + (s.activa ? '' : ' <span class="marca gris">Oculta</span>') + '</p></div>' +
     '<div class="flechas"><button type="button" data-mover-sec="' + s.id + '" data-dir="-1" aria-label="Subir sección ' + esc(s.nombre) + '"' + (i === 0 ? ' disabled' : '') + '>' + ICO.arriba + '</button><button type="button" data-mover-sec="' + s.id + '" data-dir="1" aria-label="Bajar sección ' + esc(s.nombre) + '"' + (i === n - 1 ? ' disabled' : '') + '>' + ICO.abajo + '</button></div>' +
@@ -556,6 +585,7 @@ function editarSeccion(s){
     '<div class="campo"><label for="s-dentro">¿Dónde se muestra?</label><select id="s-dentro"' + (tieneHijas ? ' disabled' : '') + '><option value="">Como solapa propia</option>' + principales().filter(function(x){ return !s || x.id !== s.id; }).map(function(x){
       return '<option value="' + x.id + '"' + (s && s.dentro_de === x.id ? ' selected' : '') + '>Dentro de ' + esc(x.nombre) + '</option>'; }).join('') + '</select>' +
       (tieneHijas ? '<p class="nota">Tiene otras secciones adentro, así que queda como solapa propia.</p>' : '') + '</div>' +
+    llave('s-flotante', 'Mostrar como botón flotante', 'No aparece en la carta: queda en un botón al costado en las solapas de pizzas y empanadas (como la fainá).', s ? s.flotante : false) +
     llave('s-activa', 'Se muestra', 'Apagado: la sección y sus productos no aparecen.', s ? s.activa : true) +
     '<p class="error-form" id="form-error" role="alert"></p>';
   abrirCajon(s ? 'Sección' : 'Nueva sección', cuerpo, '<button class="boton" type="button" id="s-guardar">' + (s ? 'Guardar cambios' : 'Crear sección') + '</button><button class="boton claro" type="button" id="s-cancelar">Cancelar</button>');
@@ -570,7 +600,7 @@ function editarSeccion(s){
       accion:'seccion_guardar', id:s ? s.id : null, nombre:$('s-nombre').value, bajada:$('s-bajada').value,
       tipo:tipo(), tema:(document.querySelector('input[name="s-tema"]:checked') || {}).value, mitades:$('s-mitades').checked,
       precio_unidad:soloNumeros($('s-unidad').value), precio_media:soloNumeros($('s-media').value), precio_docena:soloNumeros($('s-docena').value),
-      dentro_de:$('s-dentro').value ? Number($('s-dentro').value) : null, activa:$('s-activa').checked
+      dentro_de:$('s-dentro').value ? Number($('s-dentro').value) : null, activa:$('s-activa').checked, flotante:$('s-flotante').checked
     };
     b.disabled = true; errorForm('');
     api('/api/panel/accion', datos).then(function(j){ cerrarCajon(); avisar(j.sin_cambios ? 'No había cambios' : 'Guardado'); verCarta(); })
@@ -601,44 +631,189 @@ $('vista').addEventListener('change', function(e){
   }).catch(function(){ i.checked = !val; }).then(function(){ i.disabled = false; });
 });
 
-/* ---------- horario ---------- */
+/* ---------- horario y zonas ---------- */
+function bloqueHorario(que, titulo, datos, porDefecto){
+  var hor = datos.horario || {}, m = datos.estado_manual || 'auto';
+  return '<section class="estado-card' + (datos.abierto ? ' abierto' : '') + '"><p class="tipo-h">' + titulo + '</p><p class="ahora"><i aria-hidden="true"></i>' + (datos.abierto ? 'Abierto ahora' : 'Cerrado ahora') + '</p>' +
+    '<p>' + (m === 'auto' ? 'Sigue el horario de abajo.' : m === 'abierto' ? 'Abierto a mano: toma pedidos aunque esté fuera de horario.' : 'Cerrado a mano: no toma pedidos aunque esté en horario.') + '</p>' +
+    '<div class="segmento" role="group" aria-label="Abrir o cerrar ' + titulo + '">' +
+      '<button type="button" data-estado="auto" data-que="' + que + '" aria-pressed="' + (m === 'auto') + '">Según horario</button>' +
+      '<button type="button" data-estado="abierto" data-que="' + que + '" aria-pressed="' + (m === 'abierto') + '">Abrir ahora</button>' +
+      '<button type="button" data-estado="cerrado" data-que="' + que + '" aria-pressed="' + (m === 'cerrado') + '">Cerrar ahora</button></div></section>' +
+    '<section class="grupo"><div class="grupo-cab"><div class="t"><h3>Días y horas · ' + titulo + '</h3><p class="meta">En hora de Argentina. Para cerrar a medianoche poné 00:00.</p></div></div><div class="dias">' +
+    ORDEN_DIAS.map(function(d){
+      var r = hor[String(d)], id = que + '-' + d;
+      var hasta = r ? (r[1] === '24:00' ? '00:00' : r[1]) : porDefecto[1];
+      return '<div class="dia' + (r ? '' : ' off') + '" data-dia="' + id + '">' + llave(id, DIAS[d], '', !!r).replace('class="llave"', 'class="llave" style="grid-column:1/-1;min-height:44px"') +
+        '<div class="horas"><input type="time" id="' + id + '-de" aria-label="' + DIAS[d] + ' desde" value="' + (r ? r[0] : porDefecto[0]) + '"><span>a</span><input type="time" id="' + id + '-a" aria-label="' + DIAS[d] + ' hasta" value="' + hasta + '"></div></div>';
+    }).join('') + '</div></section>' +
+    '<p class="error-form" id="err-' + que + '" role="alert"></p><button class="boton" type="button" data-guardar-h="' + que + '">Guardar horario · ' + titulo + '</button>';
+}
 function verHorario(){
   return traerCarta().then(function(){
-    var L = CARTA.local, hor = L.horario || {};
-    var h = '<div class="cab"><div><h2>Horario</h2></div></div>' +
-      '<section class="estado-card' + (L.abierto ? ' abierto' : '') + '"><p class="ahora"><i aria-hidden="true"></i>' + (L.abierto ? 'Abierto ahora' : 'Cerrado ahora') + '</p>' +
-      '<p>' + (L.estado_manual === 'auto' ? 'Sigue el horario de abajo.' : L.estado_manual === 'abierto' ? 'Abierto a mano: toma pedidos aunque esté fuera de horario.' : 'Cerrado a mano: no toma pedidos aunque esté en horario.') + '</p>' +
-      '<div class="segmento" role="group" aria-label="Abrir o cerrar">' +
-        '<button type="button" data-estado="auto" aria-pressed="' + (L.estado_manual === 'auto') + '">Según horario</button>' +
-        '<button type="button" data-estado="abierto" aria-pressed="' + (L.estado_manual === 'abierto') + '">Abrir ahora</button>' +
-        '<button type="button" data-estado="cerrado" aria-pressed="' + (L.estado_manual === 'cerrado') + '">Cerrar ahora</button></div></section>' +
-      '<section class="grupo"><div class="grupo-cab"><div class="t"><h3>Días y horas</h3><p class="meta">En hora de Argentina</p></div></div><div class="dias">' +
-      ORDEN_DIAS.map(function(d){
-        var r = hor[String(d)];
-        return '<div class="dia' + (r ? '' : ' off') + '" data-dia="' + d + '">' + llave('d-' + d, DIAS[d], '', !!r).replace('class="llave"', 'class="llave" style="grid-column:1/-1;min-height:44px"') +
-          '<div class="horas"><input type="time" id="d-' + d + '-de" aria-label="' + DIAS[d] + ' desde" value="' + (r ? r[0] : '13:00') + '"><span>a</span><input type="time" id="d-' + d + '-a" aria-label="' + DIAS[d] + ' hasta" value="' + (r ? r[1] : '17:00') + '"></div></div>';
-      }).join('') + '</div></section>' +
-      '<p class="error-form" id="form-error" role="alert"></p><button class="boton" type="button" id="h-guardar">Guardar horario</button>';
+    var L = CARTA.local;
+    var ventana = L.ventana || {horario:L.horario, estado_manual:L.estado_manual, abierto:L.abierto};
+    var delivery = L.delivery || {horario:{}, estado_manual:'auto', abierto:false};
+    var zonas = CARTA.zonas || [];
+    var h = '<div class="cab"><div><h2>Horario y zonas</h2><p>Al paso al mediodía · delivery y retiro a la noche</p></div></div>' +
+      '<div class="dos-col"><div>' + bloqueHorario('ventana', 'Al paso', ventana, ['13:00', '17:00']) + '</div>' +
+      '<div>' + bloqueHorario('delivery', 'Delivery', delivery, ['19:30', '00:00']) + '</div></div>' +
+      '<section class="grupo" style="margin-top:22px"><div class="grupo-cab"><div class="t"><h3>Zonas de delivery</h3><p class="meta">El costo se suma solo al pedido</p></div></div>' +
+      (zonas.length ? zonas.map(function(z, k){
+        return '<div class="fila"><button class="abrir" type="button" data-zona="' + z.id + '"><span class="datos"><b>' + esc(z.nombre) + '</b><span class="precios num"><span>' + fmt(z.costo) + '</span></span>' +
+          (z.activa ? '' : '<span class="marcas"><span class="marca gris">Oculta</span></span>') + '</span></button>' +
+          '<div class="flechas"><button type="button" data-mover-zona="' + z.id + '" data-dir="-1" aria-label="Subir ' + esc(z.nombre) + '"' + (k === 0 ? ' disabled' : '') + '>' + ICO.arriba + '</button><button type="button" data-mover-zona="' + z.id + '" data-dir="1" aria-label="Bajar ' + esc(z.nombre) + '"' + (k === zonas.length - 1 ? ' disabled' : '') + '>' + ICO.abajo + '</button></div></div>';
+      }).join('') : '<p class="vacia-t">Todavía no hay zonas.</p>') +
+      '<button class="sumar-fila" type="button" data-zona="">' + ICO.mas + 'Nueva zona</button></section>';
     $('vista').innerHTML = h;
-    ORDEN_DIAS.forEach(function(d){ $('d-' + d).onchange = function(){ document.querySelector('[data-dia="' + d + '"]').classList.toggle('off', !this.checked); }; });
-    document.querySelectorAll('[data-estado]').forEach(function(b){
-      b.onclick = function(){ accion({accion:'local_guardar', estado_manual:b.dataset.estado}).then(function(){ avisar(b.dataset.estado === 'auto' ? 'Sigue el horario' : b.dataset.estado === 'abierto' ? 'Abierto' : 'Cerrado'); verHorario(); }); };
+    ['ventana', 'delivery'].forEach(function(que){
+      ORDEN_DIAS.forEach(function(d){ var id = que + '-' + d; $(id).onchange = function(){ document.querySelector('[data-dia="' + id + '"]').classList.toggle('off', !this.checked); }; });
     });
-    $('h-guardar').onclick = function(){
-      var nuevo = {};
-      ORDEN_DIAS.forEach(function(d){ nuevo[String(d)] = $('d-' + d).checked ? [$('d-' + d + '-de').value, $('d-' + d + '-a').value] : null; });
-      var b = this; b.disabled = true; errorForm('');
-      api('/api/panel/accion', {accion:'local_guardar', horario:nuevo}).then(function(j){ avisar(j.sin_cambios ? 'No había cambios' : 'Horario guardado'); verHorario(); })
-        .catch(function(e){ if (e.message !== 'sesion') errorForm(e.message); }).then(function(){ b.disabled = false; });
-    };
+    document.querySelectorAll('[data-estado]').forEach(function(b){
+      b.onclick = function(){
+        var cuerpo = {accion:'local_guardar', estado_manual:b.dataset.estado};
+        if (b.dataset.que === 'delivery') cuerpo.que = 'delivery';
+        accion(cuerpo).then(function(){ avisar((b.dataset.que === 'delivery' ? 'Delivery: ' : 'Al paso: ') + (b.dataset.estado === 'auto' ? 'sigue el horario' : b.dataset.estado === 'abierto' ? 'abierto' : 'cerrado')); verHorario(); });
+      };
+    });
+    document.querySelectorAll('[data-guardar-h]').forEach(function(b){
+      b.onclick = function(){
+        var que = b.dataset.guardarH, nuevo = {};
+        ORDEN_DIAS.forEach(function(d){
+          var id = que + '-' + d, a = $(id + '-a').value;
+          nuevo[String(d)] = $(id).checked ? [$(id + '-de').value, a === '00:00' ? '24:00' : a] : null;
+        });
+        var e = $('err-' + que); e.textContent = ''; b.disabled = true;
+        var cuerpo = {accion:'local_guardar', horario:nuevo}; if (que === 'delivery') cuerpo.que = 'delivery';
+        api('/api/panel/accion', cuerpo).then(function(j){ avisar(j.sin_cambios ? 'No había cambios' : 'Horario guardado'); verHorario(); })
+          .catch(function(err){ if (err.message !== 'sesion') e.textContent = err.message; }).then(function(){ b.disabled = false; });
+      };
+    });
+    document.querySelectorAll('[data-zona]').forEach(function(b){
+      b.onclick = function(){ editarZona(b.dataset.zona ? zonas.filter(function(z){ return z.id === Number(b.dataset.zona); })[0] : null); };
+    });
+    document.querySelectorAll('[data-mover-zona]').forEach(function(b){
+      b.onclick = function(){ accion({accion:'zona_mover', id:Number(b.dataset.moverZona), dir:Number(b.dataset.dir)}).then(verHorario); };
+    });
   });
 }
+function editarZona(z){
+  var cuerpo =
+    '<div class="campo"><label for="z-nombre">Nombre</label><input type="text" id="z-nombre" maxlength="40" value="' + esc(z ? z.nombre : '') + '" placeholder="Ej.: Barrios de Puertos"></div>' +
+    campoPrecio('z-costo', 'Costo del envío', z ? z.costo : '') +
+    llave('z-activa', 'Se muestra', 'Apagado: el cliente no la puede elegir.', z ? z.activa : true) +
+    '<p class="error-form" id="form-error" role="alert"></p>';
+  abrirCajon(z ? 'Zona' : 'Nueva zona', cuerpo, '<button class="boton" type="button" id="z-guardar">' + (z ? 'Guardar' : 'Crear zona') + '</button><button class="boton claro" type="button" id="z-cancelar">Cancelar</button>');
+  $('z-cancelar').onclick = cerrarCajon;
+  $('z-guardar').onclick = function(){
+    var b = this; b.disabled = true; errorForm('');
+    var costo = $('z-costo').value.replace(/[^0-9]/g, '');
+    api('/api/panel/accion', {accion:'zona_guardar', id:z ? z.id : null, nombre:$('z-nombre').value, costo:costo === '' ? null : Number(costo), activa:$('z-activa').checked})
+      .then(function(j){ cerrarCajon(); avisar(j.sin_cambios ? 'No había cambios' : 'Zona guardada'); verHorario(); })
+      .catch(function(e){ if (e.message !== 'sesion') errorForm(e.message); }).then(function(){ b.disabled = false; });
+  };
+}
+
+/* ---------- noche: pedidos de delivery y retiro, en vivo ---------- */
+var NOCHE = {timer:null, vistos:null, audio:null, sonido:false, titulo:document.title};
+try { NOCHE.sonido = localStorage.getItem('alpaso_sonido') === '1'; } catch(e){}
+var ESTADO_NOCHE = {NUEVO:'Nuevo', CONFIRMADO:'En preparación', EN_CAMINO:'En camino', LISTO:'Listo para retirar', ENTREGADO:'Entregado', CANCELADO:'Cancelado'};
+function sonar(){
+  if (!NOCHE.sonido) return;
+  try {
+    var A = window.AudioContext || window.webkitAudioContext; if (!A) return;
+    NOCHE.audio = NOCHE.audio || new A();
+    var ctx = NOCHE.audio; if (ctx.state === 'suspended') ctx.resume();
+    [0, 0.22, 0.44].forEach(function(t, k){
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = k === 2 ? 1320 : 990;
+      g.gain.setValueAtTime(0.0001, ctx.currentTime + t);
+      g.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.18);
+      o.connect(g); g.connect(ctx.destination); o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.2);
+    });
+  } catch(e){}
+}
+function pararNoche(){ clearInterval(NOCHE.timer); NOCHE.timer = null; document.title = NOCHE.titulo; }
+function telWa(t){ return '549' + String(t || '').replace(/\D/g, ''); }
+function telLindo(t){ t = String(t || ''); return t.length === 10 ? (t.slice(0, 2) === '11' ? t.slice(0, 2) + ' ' + t.slice(2, 6) + '-' + t.slice(6) : t.slice(0, 4) + ' ' + t.slice(4, 7) + '-' + t.slice(7)) : t; }
+function mensajeWa(p){
+  var c = p.cliente || {}, nombre = c.nombre ? ' ' + c.nombre.split(' ')[0] : '';
+  if (p.estado === 'EN_CAMINO') return 'Hola' + nombre + '! Tu pedido #' + p.numero + ' de Una Pizza ya salió para ' + (c.calle || 'tu casa') + '.';
+  if (p.estado === 'LISTO') return 'Hola' + nombre + '! Tu pedido #' + p.numero + ' de Una Pizza está listo. Te esperamos en Mendoza 1578.';
+  return 'Hola' + nombre + '! Recibimos tu pedido #' + p.numero + ' de Una Pizza y ya lo estamos preparando. Total ' + fmt(p.total) + (p.pago === 'efectivo' ? ', en efectivo' : '') + '.';
+}
+function tarjetaNoche(p, nuevo){
+  var c = p.cliente || {}, del = p.entrega === 'delivery';
+  var vuelto = p.pago === 'efectivo' && p.paga_con ? p.paga_con - p.total : null;
+  var botones = '';
+  if (p.estado === 'NUEVO') botones = '<button class="boton" type="button" data-pe="' + p.id + '" data-estado-p="CONFIRMADO">Confirmar</button>';
+  else if (p.estado === 'CONFIRMADO') botones = '<button class="boton" type="button" data-pe="' + p.id + '" data-estado-p="' + (del ? 'EN_CAMINO' : 'LISTO') + '">' + (del ? 'Salió' : 'Listo para retirar') + '</button>';
+  else if (p.estado === 'EN_CAMINO' || p.estado === 'LISTO') botones = '<button class="boton" type="button" data-pe="' + p.id + '" data-estado-p="ENTREGADO">Entregado</button>';
+  var cerrado = p.estado === 'ENTREGADO' || p.estado === 'CANCELADO';
+  return '<article class="noche' + (nuevo ? ' recien' : '') + (cerrado ? ' cerrado' : '') + '" data-estado="' + p.estado + '">' +
+    '<header><span class="n num">#' + p.numero + '</span><span class="h num">' + esc(p.hora) + ' h</span>' +
+      '<span class="marca ' + (p.estado === 'NUEVO' ? 'roja' : cerrado ? 'gris' : 'verde') + '">' + esc(ESTADO_NOCHE[p.estado] || p.estado) + '</span>' +
+      '<span class="tot num">' + fmt(p.total) + '</span></header>' +
+    '<div class="quien"><b>' + esc(c.nombre || '') + '</b>' + (c.telefono ? '<a class="num" href="tel:+' + telWa(c.telefono) + '">' + esc(telLindo(c.telefono)) + '</a>' : '') + '</div>' +
+    '<p class="entrega-l">' + (del ? '<b>Delivery · ' + esc(p.zona || '') + '</b> ' + esc(c.calle || '') + (c.entre ? ' (' + esc(c.entre) + ')' : '') : '<b>Retira en el local</b>') +
+      (c.nota ? '<br><span class="nota">' + esc(c.nota) + '</span>' : '') + '</p>' +
+    '<p class="pago-l">' + (p.pago === 'mp' ? '<span class="marca verde">Pagado con MP</span>' : '<span class="marca ambar">Efectivo</span>' + (p.paga_con ? ' paga con <b class="num">' + fmt(p.paga_con) + '</b> · vuelto <b class="num">' + fmt(vuelto) + '</b>' : ' · sin aclarar con cuánto paga')) + '</p>' +
+    '<pre>' + esc(p.items.map(function(l){ return l.comanda.join('\n'); }).join('\n')) + (del ? '\nENVÍO ' + esc((p.zona || '').toUpperCase()) + '  ' + fmt(p.envio) : '') + '</pre>' +
+    (cerrado ? '' : '<div class="acciones-n">' + botones +
+      (c.telefono ? '<a class="boton wa" href="https://wa.me/' + telWa(c.telefono) + '?text=' + encodeURIComponent(mensajeWa(p)) + '" target="_blank" rel="noopener">Avisar por WhatsApp</a>' : '') +
+      '<button class="boton-chico" type="button" data-pe="' + p.id + '" data-estado-p="CANCELADO">Cancelar</button></div>') +
+    '</article>';
+}
+function verNoche(){
+  return api('/api/panel/ver?vista=noche').then(function(j){
+    var ps = j.pedidos, ids = ps.map(function(p){ return String(p.id); });
+    var nuevos = NOCHE.vistos ? ids.filter(function(id){ return NOCHE.vistos.indexOf(id) < 0; }) : [];
+    if (nuevos.length){ sonar(); avisar(nuevos.length === 1 ? 'Entró un pedido nuevo' : 'Entraron ' + nuevos.length + ' pedidos nuevos'); }
+    NOCHE.vistos = ids;
+    var abiertos = ps.filter(function(p){ return p.estado === 'NUEVO'; }).length;
+    var b = $('badge-noche'); b.hidden = !abiertos; b.textContent = abiertos || '';
+    document.title = abiertos ? '(' + abiertos + ') Pedidos · Una Pizza' : NOCHE.titulo;
+    if (VISTA !== 'noche') return;
+    var grupos = [
+      {t:'Nuevos', f:function(p){ return p.estado === 'NUEVO'; }},
+      {t:'En preparación', f:function(p){ return p.estado === 'CONFIRMADO'; }},
+      {t:'En camino o listos', f:function(p){ return p.estado === 'EN_CAMINO' || p.estado === 'LISTO'; }},
+      {t:'Cerrados', f:function(p){ return p.estado === 'ENTREGADO' || p.estado === 'CANCELADO'; }}
+    ];
+    var totalDia = ps.filter(function(p){ return p.estado !== 'CANCELADO'; }).reduce(function(a, p){ return a + p.total; }, 0);
+    var h = '<div class="cab"><div><h2>Noche</h2><p>Delivery y retiro de hoy · se actualiza solo</p></div>' +
+      '<button class="boton-chico" type="button" id="sonido">' + (NOCHE.sonido ? 'Sonido activado' : 'Activar sonido') + '</button></div>' +
+      '<div class="resumen"><div><small>Pedidos</small><b class="num">' + ps.length + '</b></div><div><small>Total</small><b class="num">' + fmt(totalDia) + '</b></div></div>';
+    if (!ps.length) h += '<p class="ayuda">Todavía no entraron pedidos hoy. Cuando entre uno, suena y aparece acá.</p>';
+    grupos.forEach(function(g){
+      var lista = ps.filter(g.f); if (!lista.length) return;
+      if (g.t === 'Nuevos' || g.t === 'En preparación' || g.t === 'En camino o listos') lista = lista.slice().reverse();
+      h += '<h3 class="grupo-t">' + g.t + ' <span class="num">' + lista.length + '</span></h3>' + lista.map(function(p){ return tarjetaNoche(p, nuevos.indexOf(String(p.id)) > -1); }).join('');
+    });
+    $('vista').innerHTML = h;
+    $('sonido').onclick = function(){
+      NOCHE.sonido = !NOCHE.sonido; try { localStorage.setItem('alpaso_sonido', NOCHE.sonido ? '1' : '0'); } catch(e){}
+      this.textContent = NOCHE.sonido ? 'Sonido activado' : 'Activar sonido';
+      if (NOCHE.sonido) sonar();
+    };
+    if (!NOCHE.timer) NOCHE.timer = setInterval(function(){ if (!document.hidden) verNoche().catch(function(){}); }, 15000);
+  });
+}
+$('vista').addEventListener('click', function(e){
+  var b = e.target.closest && e.target.closest('[data-estado-p]'); if (!b) return;
+  if (b.dataset.estadoP === 'CANCELADO' && b.dataset.confirmar !== '1'){ b.dataset.confirmar = '1'; b.textContent = 'Tocá de nuevo para cancelar'; return; }
+  b.disabled = true;
+  accion({accion:'pedido_estado', id:Number(b.dataset.pe), estado:b.dataset.estadoP}).then(function(){ verNoche(); }).catch(function(){ b.disabled = false; });
+});
+// el navegador habilita el sonido después de un toque: se aprovecha cualquiera
+document.addEventListener('pointerdown', function(){ if (NOCHE.sonido && NOCHE.audio && NOCHE.audio.state === 'suspended') NOCHE.audio.resume(); }, {passive:true});
 
 /* ---------- pedidos de hoy ---------- */
 function verPedidos(){
   return api('/api/panel/ver?vista=pedidos').then(function(j){
     var tot = j.pedidos.reduce(function(a, p){ return a + p.total; }, 0);
-    var h = '<div class="cab"><div><h2>Pedidos</h2><p>De hoy</p></div><button class="boton-chico" type="button" id="refrescar">Actualizar</button></div>' +
+    var h = '<div class="cab"><div><h2>Al paso</h2><p>Pedidos de la ventana de hoy</p></div><button class="boton-chico" type="button" id="refrescar">Actualizar</button></div>' +
       '<div class="resumen"><div><small>Pedidos</small><b class="num">' + j.pedidos.length + '</b></div><div><small>Total</small><b class="num">' + fmt(tot) + '</b></div></div>';
     h += j.pedidos.length ? '<section class="grupo">' + j.pedidos.map(function(p){
       return '<div class="pedido"><p class="arriba"><span class="n num">#' + p.numero + '</span><span class="h num">' + esc(p.hora) + ' h</span>' +
@@ -652,17 +827,17 @@ function verPedidos(){
 
 /* ---------- historial ---------- */
 var CAMPOS = {nombre:'Nombre', descripcion:'Descripción', precio:'Precio', precio_grande:'Grande', foto:'Foto', opciones:'Opciones', activo:'Se muestra', al_paso:'Al paso', agotado:'Agotado',
-  seccion_id:'Sección', bajada:'Bajada', tipo:'Tipo', tema:'Color', mitades:'Mitad y mitad', precio_unidad:'Unidad', precio_media:'½ docena', precio_docena:'Docena', dentro_de:'Dentro de', activa:'Se muestra',
-  horario:'Horario', estado_manual:'Estado', rol:'Rol', pin:'PIN', desbloqueado:'Desbloqueado', movido:'Movido'};
-var ACCIONES = {producto_alta:'Alta', producto_cambio:'Cambio', agotado:'Agotado', reactivado:'Volvió', orden:'Orden', seccion_alta:'Sección nueva', seccion_cambio:'Sección', local:'Local', usuario_alta:'Usuario nuevo', usuario_cambio:'Usuario', carga_inicial:'Carga inicial'};
+  seccion_id:'Sección', bajada:'Bajada', tipo:'Tipo', tema:'Color', mitades:'Mitad y mitad', flotante:'Flotante', precio_unidad:'Unidad', precio_media:'½ docena', precio_docena:'Docena', dentro_de:'Dentro de', activa:'Se muestra',
+  horario:'Horario', estado_manual:'Estado', rol:'Rol', pin:'PIN', desbloqueado:'Desbloqueado', movido:'Movido', costo:'Costo'};
+var ACCIONES = {producto_alta:'Alta', producto_cambio:'Cambio', agotado:'Agotado', reactivado:'Volvió', orden:'Orden', seccion_alta:'Sección nueva', seccion_cambio:'Sección', local:'Local', usuario_alta:'Usuario nuevo', usuario_cambio:'Usuario', carga_inicial:'Carga inicial', zona_alta:'Zona nueva', zona_cambio:'Zona'};
 function valorTexto(k, v){
   if (v === null || v === undefined || v === '') return '—';
-  if (k.indexOf('precio') === 0) return fmt(v);
+  if (k.indexOf('precio') === 0 || k === 'costo') return fmt(v);
   if (typeof v === 'boolean') return v ? 'Sí' : 'No';
   if (k === 'foto') return 'nueva';
   if (k === 'seccion_id' || k === 'dentro_de'){ var s = CARTA && seccion(v); return s ? s.nombre : '#' + v; }
   if (k === 'opciones') return v.tipo === 'elegir' ? v.valores.join(', ') : v.pregunta;
-  if (k === 'horario') return Object.keys(v).map(function(d){ return DIAS[d].slice(0, 3) + ' ' + v[d].join('–'); }).join(', ');
+  if (k === 'horario') return Object.keys(v).map(function(d){ return DIAS[d].slice(0, 3) + ' ' + v[d].join('–').replace('24:00', '00:00'); }).join(', ');
   if (k === 'estado_manual') return {auto:'según horario', abierto:'abierto a mano', cerrado:'cerrado a mano'}[v] || v;
   return String(v);
 }

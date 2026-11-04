@@ -1,7 +1,9 @@
 # flux-mostrador
 
-Venta al paso sin cajero: el cliente escanea el QR, elige, paga y recibe un número; al pizzero se le imprime la comanda.
-Primer local: **Una Pizza** (martes a sábado de 13 a 17).
+Venta sin cajero para **Una Pizza**, con la misma carta y la misma página en dos modos que cambian solos por horario:
+
+- **Al paso (mediodía, martes a sábado de 13 a 17):** el cliente escanea el QR en la ventana, elige, paga y recibe un número; al pizzero se le imprime la comanda.
+- **Delivery y retiro (noche, miércoles a domingo de 19:30 a 24):** el cliente entra por el link de WhatsApp, arma el pedido, elige delivery (zona con su costo) o retiro y paga en efectivo al recibir. El pedido entra solo al panel **Noche**, que suena; el telefonista lo confirma, avisa por WhatsApp con un toque y lo carga en Obelisk para facturar.
 
 App aparte de FLUX: repo y proyecto de Vercel propios. Usa la misma base de Supabase pero con su propio esquema
 (`alpaso`) y un usuario de base (`alpaso_app`) que **no puede ver ni tocar nada de FLUX**.
@@ -11,7 +13,7 @@ App aparte de FLUX: repo y proyecto de Vercel propios. Usa la misma base de Supa
 | Dirección | Qué es |
 |---|---|
 | `/` | La página del cliente: carta, mitad y mitad, armá tu docena, pedido. En modo prueba **no cobra**: guarda el pedido y da el número. |
-| `/panel` | El panel con PIN: carta (editar, alta de productos y secciones, fotos, orden), agotados, horario y abrir/cerrar, pedidos de hoy, historial, usuarios (solo Gerencia). |
+| `/panel` | El panel con PIN: carta (editar, alta de productos y secciones, fotos, orden), **Noche** (pedidos de delivery y retiro en vivo, con sonido y estados), agotados, horario y zonas (al paso y delivery, abrir/cerrar, costo de envío por zona), pedidos al paso de hoy, historial, usuarios (solo Gerencia). |
 
 Etapas que siguen: 2 cobro con Mercado Pago · 3 comandera · 4 factura B con ARCA · 5 ventas en FLUX.
 
@@ -20,6 +22,7 @@ Etapas que siguen: 2 cobro con Mercado Pago · 3 comandera · 4 factura B con AR
 ### 1. La base (Supabase → SQL Editor)
 
 1. Pegá y corré todo `sql/alpaso_fase1a.sql`. Crea el esquema, el usuario `alpaso_app` y carga la carta de Una Pizza.
+   Después corré `sql/alpaso_fase1c_noche.sql` (horario del delivery, zonas y datos del pedido de noche).
 2. En una consulta nueva, corré estas dos líneas cambiando lo que está en mayúsculas:
 
    ```sql
@@ -54,6 +57,8 @@ Etapas que siguen: 2 cobro con Mercado Pago · 3 comandera · 4 factura B con AR
 ## Reglas de negocio
 
 - Precios siempre recalculados en el servidor (`lib/pedido.js`); el celular no decide precios.
+- **Modo de la página**: si la ventana está abierta, manda la ventana; si no, el delivery; si no, cerrado. Desde el panel se abre o cierra cada uno a mano.
+- **Delivery**: el envío sale de la zona guardada en la base. Celular argentino de 10 números (se aceptan 0, 15 y 54 y se limpian). Efectivo con "con cuánto pagás" opcional para el vuelto. Mercado Pago aparece como "muy pronto" hasta conectar el cobro.
 - **Mitad y mitad**: solo grandes de secciones con "Mitad y mitad". Se cobra la grande del gusto más caro. Comanda: `GRANDE MITAD Y MITAD` + cada ½.
 - **Empanadas**: se eligen por gusto y se cobra la combinación más barata de sueltas, ½ docenas y docenas.
 - **Agotado**: se marca a mano y vuelve solo cuando alguien lo desmarca.
