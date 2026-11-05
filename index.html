@@ -1252,7 +1252,7 @@ function abrirEntrega(){
     var ok = $('en-ok');
     if (!ABIERTO) return botonCerrado(ok);
     ok.disabled = false;
-    ok.textContent = 'Confirmar pedido · ' + fmt(sub + envio());
+    ok.textContent = (formaPago() === 'mp' ? 'Pagar con Mercado Pago · ' : 'Confirmar pedido · ') + fmt(sub + envio());
   }
   cuerpo.addEventListener('change', function(e){ if (e.target.name === 'en-tipo' || e.target.name === 'en-zona' || e.target.name === 'en-pago'){ $('en-error').textContent = ''; pintar(true); } });
   $('en-paga').addEventListener('input', function(){ var v = this.value.replace(/\D/g, ''); this.value = v ? Number(v).toLocaleString('es-AR') : ''; });
@@ -1293,7 +1293,8 @@ function enviarPedido(extra, repintar, mostrarError){
   var c = $('cajon'); c.dataset.fijo = '1';
   var tk = c.querySelector('.ticket'), guardado = tk.innerHTML;
   var boton = tk.querySelector('.boton'), idBoton = boton ? boton.id : null, accion = boton ? boton.onclick : null;
-  tk.innerHTML = '<div class="cargando" role="status"><span class="rueda" aria-hidden="true"></span><p>' + (MODO === 'delivery' ? 'Enviando tu pedido…' : PRUEBA ? 'Guardando tu pedido…' : 'Te llevamos a Mercado Pago…') + '</p></div>';
+  var aMp = MODO === 'delivery' ? extra.pago === 'mp' : !PRUEBA;
+  tk.innerHTML = '<div class="cargando" role="status"><span class="rueda" aria-hidden="true"></span><p>' + (aMp ? 'Te llevamos a Mercado Pago…' : MODO === 'delivery' ? 'Enviando tu pedido…' : 'Guardando tu pedido…') + '</p></div>';
   var cuerpo = {items:itemsParaEnviar()};
   for (var k in extra) cuerpo[k] = extra[k];
   function restaurar(){ tk.innerHTML = guardado; if (idBoton && $(idBoton)) $(idBoton).onclick = accion; repintar(false); }
@@ -1301,6 +1302,11 @@ function enviarPedido(extra, repintar, mostrarError){
     .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
     .then(function(x){
       delete c.dataset.fijo;
+      if (x.ok && x.j.ok && x.j.pagar_url){
+        try { sessionStorage.setItem('unapizza_carrito', JSON.stringify({PEDIDO:PEDIDO, EMPS:EMPS})); } catch(e){}
+        c.dataset.fijo = '1';
+        location.href = x.j.pagar_url; return;
+      }
       if (x.ok && x.j.ok) return mostrarListo(x.j);
       var msg = (x.j && x.j.mensaje) || 'No pudimos mandar el pedido. Probá de nuevo.';
       if (x.j && (x.j.error === 'AGOTADO' || x.j.error === 'NO_DISPONIBLE' || x.j.error === 'CERRADO' || x.j.error === 'TAMANO' || x.j.error === 'MITADES')){
@@ -1348,7 +1354,7 @@ function mostrarListoNoche(p){
       (del ? '<li><span>Envío · ' + esc(p.zona || '') + '</span><span class="num">' + fmt(p.envio) + '</span></li>' : '') + '</ul>' +
     '<p class="tot"><span>Total</span><span class="num">' + fmt(p.total) + '</span></p></div>' +
     '<div class="factura"><span>' + (p.pago === 'mp' ? 'Pagado con Mercado Pago' : 'Pagás en efectivo ' + (del ? 'al recibir' : 'al retirar')) +
-      '<small>' + (vuelto ? 'Pagás con ' + fmt(p.paga_con) + ': te llevamos ' + fmt(vuelto) + ' de vuelto.' : 'Tené el monto justo o avisanos con cuánto pagás.') + '</small></span></div>' +
+      '<small>' + (p.pago === 'mp' ? 'Ya está pago, no tenés que pagar nada más.' : vuelto ? 'Pagás con ' + fmt(p.paga_con) + ': te llevamos ' + fmt(vuelto) + ' de vuelto.' : 'Tené el monto justo o avisanos con cuánto pagás.') + '</small></span></div>' +
     (p.whatsapp ? '<a class="boton hueco" id="listo-wa" href="https://wa.me/' + esc(p.whatsapp) + '?text=' + encodeURIComponent(texto) + '" target="_blank" rel="noopener">Escribinos por WhatsApp</a>' : '') +
     '<button class="boton" type="button" id="otro">Hacer otro pedido</button>';
   var l = $('listo'); l.hidden = false; l.scrollTop = 0;
@@ -1427,9 +1433,36 @@ document.addEventListener('visibilitychange', function(){
   if (CARTA && Date.now() - CARGADA_AT > 60000 && !CAJON_ABIERTO && $('listo').hidden) cargar();
 });
 
+/* ---------- vuelta de Mercado Pago: ?pago=ok|no|espera&ref=… ---------- */
+function volverDePago(){
+  var q = new URLSearchParams(location.search), ref = q.get('ref');
+  if (!q.get('pago') || !ref) return;
+  try { history.replaceState(null, '', location.pathname); } catch(e){}
+  var l = $('listo'), d = $('listo-d'), intentos = 0;
+  d.innerHTML = '<div class="cargando" role="status"><span class="rueda" aria-hidden="true"></span><p>Confirmando tu pago con Mercado Pago…</p></div>';
+  l.hidden = false; document.body.style.overflow = 'hidden';
+  requestAnimationFrame(function(){ l.classList.add('si'); });
+  function cerrar(msg){
+    try { var g = JSON.parse(sessionStorage.getItem('unapizza_carrito') || 'null'); if (g){ PEDIDO = g.PEDIDO || []; EMPS = g.EMPS || {}; } } catch(e){}
+    l.classList.remove('si');
+    setTimeout(function(){ l.hidden = true; document.body.style.overflow = ''; pintarCuentas(false); avisar(msg); }, 300);
+  }
+  function mirar(){
+    intentos++;
+    fetch('/api/pago?ref=' + encodeURIComponent(ref), {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(j){
+      if (j.ok && j.estado === 'pagado'){ try { sessionStorage.removeItem('unapizza_carrito'); } catch(e){} PEDIDO = []; EMPS = {}; return mostrarListo(j.pedido); }
+      if (j.ok && j.estado === 'fallido') return cerrar('El pago no se completó. Tu pedido sigue acá para probar de nuevo.');
+      if (intentos < 20) return setTimeout(mirar, 3000);
+      d.innerHTML = '<span class="chip-ok">Pago en proceso</span><p class="cuando">Mercado Pago todavía no confirmó tu pago. Si se aprueba, el pedido entra solo y te escribimos por WhatsApp.</p><button class="boton" type="button" id="otro">Volver a la carta</button>';
+      $('otro').onclick = function(){ l.classList.remove('si'); setTimeout(function(){ l.hidden = true; document.body.style.overflow = ''; }, 300); };
+    }).catch(function(){ if (intentos < 20) setTimeout(mirar, 3000); });
+  }
+  mirar();
+}
+
 armarCarrusel();
 ajustarTitulos();
-cargar();
+cargar().then(volverDePago);
 </script>
 </body>
 </html>
