@@ -170,10 +170,12 @@
   .agregar.hueco .mas svg{width:17px;height:17px}
 
   /* mitad y mitad: el anzuelo con dos fotos partidas */
-  .anzuelo.mm{min-height:220px;background:var(--rojo)}
-  .anzuelo.mm img{width:50%;right:auto}
+  .anzuelo.mm{min-height:290px;background:var(--rojo)}
+  .anzuelo.mm img{width:50%;right:auto;height:calc(100% - 74px)}
   .anzuelo.mm img + img{left:50%;right:0}
-  .anzuelo.mm .corte{position:absolute;top:0;bottom:0;left:calc(50% - 2px);width:4px;background:var(--tiza);opacity:.9}
+  .anzuelo.mm .corte{position:absolute;top:0;bottom:74px;left:calc(50% - 2px);width:4px;background:var(--tiza);opacity:.9}
+  .anzuelo.mm::before{background:linear-gradient(180deg,rgba(20,8,6,0) 35%,rgba(20,8,6,.55) calc(100% - 120px),var(--rojo) calc(100% - 74px))}
+  .anzuelo.mm span:not(.ir):not(.corte){color:#fff;font-weight:700}
   .pizza-mm{display:grid;grid-template-columns:1fr 1fr;gap:6px;width:min(280px,78%);aspect-ratio:1;margin:20px auto 6px}
   .mitad{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:0;padding:0 10px;border:2.5px dashed var(--tiza-2);background:#fff;color:var(--gris);cursor:pointer;text-align:center;transition:background-color 200ms ease,color 200ms ease,transform 140ms var(--ease-out)}
   .mitad:active{transform:scale(.97)}
@@ -199,6 +201,7 @@
   /* listas sin foto */
   .sub{margin:44px 0 14px;font-size:var(--s-sub);line-height:1;color:var(--titulo,var(--texto))}
   .lista{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+  .grilla + .lista{margin-top:18px}
   .fila{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 14px;align-items:center;padding:12px 10px 12px 18px;border-radius:14px;background:var(--card)}
   .fila h4{margin:0;font-family:var(--cond);font-size:27px;font-weight:900;text-transform:uppercase;line-height:.95}
   .fila h4 small{display:block;font-family:var(--letra);font-size:15px;font-weight:600;text-transform:none;color:var(--suave-t);margin-top:3px;line-height:1.2}
@@ -700,10 +703,13 @@ function tarjeta(it, i, destacar){
 }
 function grilla(s, destacar){
   var puesto = !destacar;
-  return '<ul class="grilla">' + s.productos.map(function(p, i){
+  // en las secciones de tarjetas (rellenas, promos) lo que no tiene foto va como renglón, sin recuadro
+  var conFoto = s.tipo === 'grilla' ? s.productos.filter(function(p){ return ITEMS[p.id].foto; }) : s.productos;
+  var sinFoto = s.tipo === 'grilla' ? s.productos.filter(function(p){ return !ITEMS[p.id].foto; }) : [];
+  return (conFoto.length ? '<ul class="grilla">' + conFoto.map(function(p, i){
     var it = ITEMS[p.id], d = !puesto && !!it.foto; if (d) puesto = true;
     return tarjeta(it, i, d);
-  }).join('') + '</ul>';
+  }).join('') + '</ul>' : '') + (sinFoto.length ? lista({productos:sinFoto}) : '');
 }
 function lista(s){
   return '<ul class="lista dos">' + s.productos.map(function(p, i){
