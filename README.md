@@ -45,6 +45,9 @@ Etapas que siguen: 2 cobro con Mercado Pago · 3 comandera · 4 factura B con AR
    |---|---|
    | `DATABASE_URL` | La misma conexión que usa FLUX (pooler, puerto 6543), cambiando **el usuario** por `alpaso_app.<ref>` (el `<ref>` es lo que va después de `postgres.` en el usuario actual) y **la contraseña** por la clave del paso 1. |
    | `SESION_SECRETO` | Cualquier frase larga inventada, de 32 caracteres o más. Firma las sesiones del panel. |
+   | `MP_ACCESS_TOKEN` | Access Token de Mercado Pago: el **de producción** en Production y el **de prueba** en Preview. |
+   | `MP_WEBHOOK_SECRET` | Clave secreta de "Configuración de webhooks" de la aplicación de Mercado Pago (evento Order). |
+   | `PAGOS` | `activo` para cobrar con Mercado Pago (primero en Preview para probar). |
    | `VENTANA` | Solo en **Production**: `apagada`. La página pública no muestra la ventana ni toma pedidos de mediodía hasta tener cobro, comandera y factura. En la dirección de prueba no se carga, así la ventana se sigue probando. |
 
 3. **Storage → Create → Blob** y conectalo al proyecto: agrega solo `BLOB_READ_WRITE_TOKEN` (para subir fotos desde el panel).
